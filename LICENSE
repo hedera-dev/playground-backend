@@ -199,3 +199,8 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+
+   This project also includes code from third-party sources, which may be subject 
+   to different license terms. For more information and details about third-party 
+   licenses, please refer to the `app/THIRD_PARTY_LICENSES.md` file in this repository.
