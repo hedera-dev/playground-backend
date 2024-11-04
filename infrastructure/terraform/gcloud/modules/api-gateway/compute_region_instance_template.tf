@@ -62,8 +62,6 @@ resource "google_compute_region_instance_template" "rit-gw" {
     # Configure Docker Registry with Google Container Registry
     sudo docker-credential-gcr configure-docker
     sudo gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-    sudo docker pull us-central1-docker.pkg.dev/kabila-development/api-gateway/haproxy-oauth:2.8-certs
-
     sudo mkdir /home/docker
     cd /home/docker
 

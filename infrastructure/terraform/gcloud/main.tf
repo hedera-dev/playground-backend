@@ -3,7 +3,7 @@
 #########################################################################################################################################################################################################################
 provider "google" {
   credentials = file(local.deployment["path_to_credentials"])
-  project = local.deployment["project-id"]
+  project = local.deployment["project_id"]
   region  = local.deployment["region"]
   zone    = local.deployment["zone"]
 }

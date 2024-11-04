@@ -62,7 +62,6 @@ resource "google_compute_region_instance_template" "rit-playground" {
     # Configure Docker Registry with Google Container Registry
     sudo docker-credential-gcr configure-docker
     sudo gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-    sudo docker pull us-central1-docker.pkg.dev/kabila-development/playground/kabila-piston:0.0.1
 
     sudo mkdir /home/docker
     cd /home/docker
