@@ -37,7 +37,7 @@ module "playground" {
   region              = local.deployment["region"]
   zone                = local.deployment["zone"]
   name                = local.deployment["name"]
-
+  github_repository   = local.deployment["github_repository"]
   network_name        = google_compute_network.network.name
   subnetwork_name     = google_compute_subnetwork.subnetwork-a.name
   network_id          = google_compute_network.network.id
