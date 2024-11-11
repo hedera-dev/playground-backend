@@ -9,21 +9,12 @@ resource "google_compute_subnetwork" "subnetwork-a" {
   name          = "subnetwork-a-${local.deployment["environment_id"]}"
   network       = google_compute_network.network.name
   region        = local.deployment["region"]
-
-  secondary_ip_range {
-    ip_cidr_range = "10.2.0.0/16"
-    range_name    = "services-sec-range"
-  }
-
-  secondary_ip_range {
-    ip_cidr_range = "10.3.0.0/16"
-    range_name    = "pods-sec-range"
-  }
 }
 
 resource "google_compute_firewall" "allow_http" {
   name    = "allow-http-${local.deployment["environment_id"]}"
   network = google_compute_network.network.id
+  priority  = 3000
 
   allow {
     protocol = "tcp"
@@ -40,6 +31,7 @@ resource "google_compute_firewall" "allow_http" {
 resource "google_compute_firewall" "allow_ssh" {
   name    = "allow-ssh-${local.deployment["environment_id"]}"
   network = google_compute_network.network.id
+  priority  = 100
 
   allow {
     protocol = "tcp"
@@ -55,14 +47,36 @@ resource "google_compute_firewall" "allow_ssh" {
 
 
 
-resource "google_compute_firewall" "allow_internal" {
+resource "google_compute_firewall" "allow_egress_internal" {
   name    = "allow-internal-${local.deployment["environment_id"]}"
   network = google_compute_network.network.id
 
   direction = "EGRESS"
   priority  = 1000
 
-  source_ranges = ["10.0.0.0/8"]
+  source_ranges = ["10.1.0.0/16"]
+  source_tags             = null
+  source_service_accounts = null
+  target_tags             = null
+  target_service_accounts = null
+
+  allow {
+    protocol = "all"
+  }
+}
+
+resource "google_compute_firewall" "allow_ingress_internal" {
+  name    = "allow-ingress-internal-${local.deployment["environment_id"]}"
+  network = google_compute_network.network.id
+
+  direction = "INGRESS"
+  priority  = 1000
+
+  source_ranges = ["10.1.0.0/16"]
+  source_tags             = null
+  source_service_accounts = null
+  target_tags             = null
+  target_service_accounts = null
 
   allow {
     protocol = "all"
@@ -70,8 +84,8 @@ resource "google_compute_firewall" "allow_internal" {
 }
 
 
-resource "google_compute_firewall" "allow_hedera_testnet" {
-  name    = "allow-hedera-testnet-${local.deployment["environment_id"]}"
+resource "google_compute_firewall" "allow_egress_hedera_testnet" {
+  name    = "allow-egress-hedera-testnet-${local.deployment["environment_id"]}"
   network = google_compute_network.network.id
 
   direction = "EGRESS"
@@ -99,8 +113,30 @@ resource "google_compute_firewall" "deny_egress_all" {
   priority  = 5000
 
   destination_ranges = ["0.0.0.0/0"]
+  source_tags             = null
+  source_service_accounts = null
+  target_tags             = null
+  target_service_accounts = null
+
   deny {
     protocol = "all"
   }
 }
 
+resource "google_compute_firewall" "deny_ingress_all" {
+  name    = "deny-ingress-all-${local.deployment["environment_id"]}"
+  network = google_compute_network.network.id
+
+  direction = "INGRESS"
+  priority  = 2000
+
+  source_ranges = ["0.0.0.0/0"]
+  source_tags             = null
+  source_service_accounts = null
+  target_tags             = ["playground"]
+  target_service_accounts = null
+
+  deny {
+    protocol = "all"
+  }
+}
