@@ -6,7 +6,7 @@ resource "google_compute_region_instance_group_manager" "rig-playground" {
     instance_template = google_compute_region_instance_template.rit-playground.id
   }
 
-  target_size = 2
+  target_size = 3
 
 #   auto_healing_policies {
 #     health_check      = google_compute_region_health_check.health-check-playground.id
@@ -26,8 +26,8 @@ resource "google_compute_region_autoscaler" "autoscaler-playground" {
   target = google_compute_region_instance_group_manager.rig-playground.id
 
   autoscaling_policy {
-    max_replicas    = 7
-    min_replicas    = 2
+    max_replicas    = 9
+    min_replicas    = 3
 
     cpu_utilization {
       target = 0.6

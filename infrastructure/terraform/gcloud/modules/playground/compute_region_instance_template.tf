@@ -4,7 +4,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
   }
 
   name         = "rt-playground-${var.environment_id}"
-  machine_type = "n2d-standard-2"
+  machine_type = "n2d-standard-4"
 
   disk {
     source_image = "projects/debian-cloud/global/images/debian-11-bullseye-v20241009"
