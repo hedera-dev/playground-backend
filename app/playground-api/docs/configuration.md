@@ -165,7 +165,7 @@ Useful for running memory-limited contests.
 
 ```yaml
 key: REPO_URL
-default: https://storage.googleapis.com/playground-pkgs/index
+default: https://storage.googleapis.com/playground_pkgs/index
 ```
 
 URL for repository index, where packages will be downloaded from.

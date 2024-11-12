@@ -1,4 +1,4 @@
-BASEURL=https://storage.googleapis.com/playground-pkgs/
+BASEURL=https://storage.googleapis.com/playground_pkgs/
 
 i=0
 

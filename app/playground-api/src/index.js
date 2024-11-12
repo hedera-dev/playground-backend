@@ -74,9 +74,8 @@ const app = express();
     });
 
     logger.debug('Registering Routes');
-
-    const api_v2 = require('./api/v2');
-    app.use('/api/v2', api_v2);
+    const api = require('./api/playground');
+    app.use('/api/playground', api);
 
     const { version } = require('../package.json');
 
