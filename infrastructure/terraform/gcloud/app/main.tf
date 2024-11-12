@@ -17,11 +17,10 @@ terraform {
   }
 }
 
-// We have to set here the same state than in deployment yaml environment id
 terraform {
   backend "gcs" {
-    bucket = # TODO: set bucket
-    prefix =  # TODO: prefix deployment
+    bucket = "playground-terraform-develop"
+    prefix = "playground-app/state"
   }
 }
 
@@ -29,19 +28,18 @@ locals {
   deployment = yamldecode(file("./templates/deployment.yml"))
 }
 
-
 module "playground" {
   source = "./modules/playground"
 
   project_id          = local.deployment["project_id"]
   region              = local.deployment["region"]
   zone                = local.deployment["zone"]
-  name                = local.deployment["name"]
-  github_repository   = local.deployment["github_repository"]
+
   network_name        = google_compute_network.network.name
   subnetwork_name     = google_compute_subnetwork.subnetwork-a.name
   network_id          = google_compute_network.network.id
   subnetwork_id       = google_compute_subnetwork.subnetwork-a.id
+
   environment_id      = local.deployment["environment_id"]
   ssh_user            = local.deployment["ssh_user"]
   ssh_keys_file       = local.deployment["ssh_keys_file"]
@@ -57,7 +55,6 @@ module "api-gateway" {
   project_id          = local.deployment["project_id"]
   region              = local.deployment["region"]
   zone                = local.deployment["zone"]
-  name                = local.deployment["name"]
 
   network_name        = google_compute_network.network.name
   subnetwork_name     = google_compute_subnetwork.subnetwork-a.name
