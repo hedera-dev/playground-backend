@@ -4,7 +4,7 @@ const router = express.Router();
 const runtime = require('../runtime');
 const { Job } = require('../job');
 const package = require('../package');
-const logger = require('logplease').create('api/v2');
+const logger = require('logplease').create('api/playground');
 
 function get_job(body) {
     let {
