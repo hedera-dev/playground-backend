@@ -1,0 +1,9 @@
+services:
+  api_gw:
+    image: haporxy:2.8
+    container_name: api_gw
+    ports:
+      - "80:80"
+    volumes:
+      - /home/docker/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    restart: unless-stopped

@@ -1,0 +1,24 @@
+services:
+  playground-api:
+    image: us-central1-docker.pkg.dev/playground-develop/playground/playground-api:latest
+    container_name: playground-api
+    restart: always
+    privileged: true
+    ports:
+      - "80:2000"
+    environment:
+      LOG_LEVEL: DEBUG
+      MAX_OPEN_FILES: 32
+      COMPILE_TIMEOUT: 10000
+      RUN_TIMEOUT: 60000
+      COMPILE_CPU_TIME: 10000
+      RUN_CPU_TIME: 30000
+      COMPILE_MEMORY_LIMIT: 50000000
+      RUN_MEMORY_LIMIT: 100000000
+      DISABLE_NETWORKING: "false"
+      OUTPUT_MAX_SIZE: 1024
+      MAX_CONCURRENT_JOBS: 100
+    tmpfs:
+      - /tmp:exec
+
+
