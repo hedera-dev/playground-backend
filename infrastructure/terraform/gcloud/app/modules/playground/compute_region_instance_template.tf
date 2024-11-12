@@ -25,13 +25,11 @@ resource "google_compute_region_instance_template" "rit-playground" {
   }
 
   service_account {
-    email  = # TODO: set email_service_account
+    email  = "playground-sa@${var.project_id}.iam.gserviceaccount.com"
     scopes = [
-      "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/devstorage.read_only",
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring.write",
-      "https://www.googleapis.com/auth/compute"
     ]
 
   }
@@ -71,6 +69,8 @@ resource "google_compute_region_instance_template" "rit-playground" {
     sudo gsutil cp gs://${var.bucket_templates}/playground/docker-compose.yaml /home/docker/docker-compose.yaml
 
     sudo chmod 666 docker-compose.yaml
+
+    sudo sed -i 's|{{ project_id }}|${var.project_id}|g' /home/docker/docker-compose.yaml
 
     # Run docker containers
     sudo docker compose up -d
