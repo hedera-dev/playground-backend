@@ -46,3 +46,7 @@ variable "lb_playground_ip" {
 variable "lb_playground_port" {
  description = "Port of playground load balancer"
 }
+
+variable "bucket_templates" {
+  description = "Bucket that contains config templates"
+}

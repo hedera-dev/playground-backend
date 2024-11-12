@@ -43,6 +43,8 @@ module "playground" {
   environment_id      = local.deployment["environment_id"]
   ssh_user            = local.deployment["ssh_user"]
   ssh_keys_file       = local.deployment["ssh_keys_file"]
+
+  bucket_templates    = local.deployment["bucket_templates"]
 }
 
 output "playground_module_outputs" {
@@ -67,6 +69,7 @@ module "api-gateway" {
   lb_playground_ip    = module.playground.lb_playground_ip
   lb_playground_port  = module.playground.lb_playground_port
 
+  bucket_templates    = local.deployment["bucket_templates"]
 }
 
 // TODO: Enable cloud monitoring

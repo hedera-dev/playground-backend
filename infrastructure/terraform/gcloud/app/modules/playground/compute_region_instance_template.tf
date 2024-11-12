@@ -68,7 +68,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
     sudo mkdir /home/docker
     cd /home/docker
     
-    sudo gsutil cp gs://kbucket-playground/playground/docker-compose.yaml /home/docker/docker-compose.yaml
+    sudo gsutil cp gs://${var.bucket_templates}/playground/docker-compose.yaml /home/docker/docker-compose.yaml
 
     sudo chmod 666 docker-compose.yaml
 

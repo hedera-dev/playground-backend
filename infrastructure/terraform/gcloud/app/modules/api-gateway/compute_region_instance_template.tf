@@ -65,8 +65,8 @@ resource "google_compute_region_instance_template" "rit-gw" {
     sudo mkdir /home/docker
     cd /home/docker
 
-    sudo gsutil cp gs://kbucket-playground/api-gateway/haproxy.cfg /home/docker/haproxy.cfg
-    sudo gsutil cp gs://kbucket-playground/api-gateway/docker-compose.yaml /home/docker/docker-compose.yaml
+    sudo gsutil cp gs://${var.bucket_templates}/api-gateway/haproxy.cfg /home/docker/haproxy.cfg
+    sudo gsutil cp gs://${var.bucket_templates}/api-gateway/docker-compose.yaml /home/docker/docker-compose.yaml
 
     sudo chmod 666 /home/docker/haproxy.cfg
     sudo chmod 666 /home/docker/docker-compose.yaml

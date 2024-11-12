@@ -37,3 +37,7 @@ variable "ssh_user" {
 variable "ssh_keys_file" {
   description = "Public key of the known user to deploy components"
 }
+
+variable "bucket_templates" {
+  description = "Bucket that contains config templates"
+}
