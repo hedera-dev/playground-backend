@@ -6,6 +6,8 @@ resource "google_project_iam_custom_role" "playground_role" {
   description = "Custom role for playground to interact with GCP resources"
   
   permissions = [
+    "artifactregistry.dockerimages.get",
+    "artifactregistry.repositories.downloadArtifacts",
     "compute.instances.list",
     "compute.instanceGroupManagers.get",
     "compute.instances.get",
@@ -15,6 +17,8 @@ resource "google_project_iam_custom_role" "playground_role" {
 	  "compute.subnetworks.get",
 	  "compute.addresses.list",
 	  "compute.globalAddresses.list",
+    "logging.logEntries.create",
+    "monitoring.timeSeries.create",
     "storage.objects.get",
     "storage.objects.list",
     "storage.objects.create",
