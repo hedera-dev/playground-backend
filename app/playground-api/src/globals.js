@@ -1,12 +1,13 @@
 // Globals are things the user shouldn't change in config, but is good to not use inline constants for
 const is_docker = require('is-docker');
 const fs = require('fs');
-const platform = `${is_docker() ? 'docker' : 'baremetal'}-${fs
+const platform = process.env['PLATFORM'] ? process.env['PLATFORM'] : `${is_docker() ? 'docker' : 'baremetal'}-${fs
     .read_file_sync('/etc/os-release')
     .toString()
     .split('\n')
     .find(x => x.startsWith('ID'))
     .replace('ID=', '')}`;
+
 const SIGNALS = {
     1: 'SIGHUP',
     2: 'SIGINT',

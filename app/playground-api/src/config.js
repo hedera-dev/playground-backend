@@ -3,6 +3,18 @@ const Logger = require('logplease');
 const logger = Logger.create('config');
 
 const options = {
+    admin_api_key: {
+        desc: 'Admin api Key to avoid use personal access tokens (For testing use only)',
+        default: '',
+        validators: [],
+    },
+    secret_key: {
+        desc: 'Secret key used to sign and verify personal access tokens',
+        default: `${process.env['SECRET_KEY'] || ''}`,
+        validators: [
+            x => x.length == 0 || /^[a-fA-F0-9]{128}$/.test(x) || `Secret key must be exactly 128 hexadecimal characters ()`,
+        ],
+    },
     log_level: {
         desc: 'Level of data to log',
         default: 'INFO',
@@ -116,7 +128,7 @@ const options = {
     },
     repo_url: {
         desc: 'URL of repo index',
-        default: 'https://storage.googleapis.com/playground-pkgs/index',
+        default: 'https://storage.googleapis.com/playground_pkgs/index',
         validators: [],
     },
     max_concurrent_jobs: {

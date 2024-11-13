@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+require('dotenv').config();
 require('nocamel');
 const Logger = require('logplease');
 const express = require('express');
@@ -9,6 +10,7 @@ const fs = require('fs/promises');
 const fss = require('fs');
 const body_parser = require('body-parser');
 const runtime = require('./runtime');
+const Auth = require('./auth');
 
 const logger = Logger.create('index');
 const app = express();
@@ -74,14 +76,9 @@ const app = express();
     });
 
     logger.debug('Registering Routes');
+    const auth = new Auth();
     const api = require('./api/playground');
-    app.use('/api/playground', api);
-
-    const { version } = require('../package.json');
-
-    app.get('/', (req, res, next) => {
-        return res.status(200).send({ message: `Playground v${version}` });
-    });
+    app.use('/api/playground', auth.authMiddleware() ,api);
 
     app.use((req, res, next) => {
         return res.status(404).send({ message: 'Not Found' });
