@@ -21,7 +21,7 @@ RUN apt-get update && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-RUN useradd -M executor
+RUN useradd -M playground
 COPY --from=isolate /usr/local/bin/isolate /usr/local/bin
 COPY --from=isolate /usr/local/etc/isolate /usr/local/etc/isolate
 
@@ -37,11 +37,11 @@ RUN apt-get remove --purge -y libkrb5-3 && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /executor
+WORKDIR /playground-api
 COPY ["package.json", "package-lock.json", "./"]
 RUN npm install
 COPY ./src ./src
 
-CMD ["/executor/src/docker-entrypoint.sh"]
+CMD ["/playground-api/src/docker-entrypoint.sh"]
 #CMD ["/bin/sh","-c","sleep infinity"]
 EXPOSE 2000/tcp

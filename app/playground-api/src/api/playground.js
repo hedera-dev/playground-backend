@@ -116,6 +116,10 @@ function get_job(body) {
     });
 }
 
+router.get('/health', async (req, res, next) => {
+    return res.status(200).send({ currentTime: `${new Date()}` });
+});
+
 router.post('/execute', async (req, res) => {
     let job;
     try {
@@ -144,6 +148,11 @@ router.post('/execute', async (req, res) => {
             return res.status(500).send(); // On error, this replaces the return in the outer try-catch
         }
     }
+});
+
+router.get('/version', async (req, res, next) => {
+    const { version } = require('../../package.json');
+    return res.status(200).send({ version: `Playground v${version}` });
 });
 
 router.get('/runtimes', (req, res) => {
