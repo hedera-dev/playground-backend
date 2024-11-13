@@ -28,6 +28,23 @@ resource "google_compute_firewall" "allow_http" {
   target_service_accounts = null
 }
 
+resource "google_compute_firewall" "allow_health_check" {
+  name    = "allow-health-check-${local.deployment["environment_id"]}"
+  network = google_compute_network.network.id
+  priority  = 1000
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  source_ranges = ["35.191.0.0/16", "34.172.226.0"]
+  source_tags             = null
+  source_service_accounts = null
+  target_tags             = null
+  target_service_accounts = null
+}
+
 resource "google_compute_firewall" "allow_ssh" {
   name    = "allow-ssh-${local.deployment["environment_id"]}"
   network = google_compute_network.network.id

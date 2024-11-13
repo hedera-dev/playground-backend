@@ -7,6 +7,7 @@ resource "google_compute_region_health_check" "health-check-playground" {
   unhealthy_threshold = 2
 
   http_health_check {
-    port = 80
+    port          = 80
+    request_path  = "/api/playground/health"
   }
 }

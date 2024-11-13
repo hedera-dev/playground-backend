@@ -8,10 +8,10 @@ resource "google_compute_region_instance_group_manager" "rig-playground" {
 
   target_size = 3
 
-#   auto_healing_policies {
-#     health_check      = google_compute_region_health_check.health-check-playground.id
-#     initial_delay_sec = 300
-#   }
+  auto_healing_policies {
+    health_check      = google_compute_region_health_check.health-check-playground.id
+    initial_delay_sec = 300
+  }
 
   distribution_policy_zones = [
     "us-central1-a",
