@@ -1,5 +1,4 @@
 github_repository: "hedera-dev/playground-backend"
-path_to_credentials: # TODO: set path_to_credentials
 project_id: "playground-develop-441415"
 region: "us-central1"
 zone: "us-central1-a"

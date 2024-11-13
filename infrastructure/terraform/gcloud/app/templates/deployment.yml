@@ -3,7 +3,6 @@ region: "us-central1"
 zone: "us-central1-a"
 name: # TODO: set name
 environment_id: # TODO: set environment_id 
-path_to_credentials: # TODO: set path_to_credentials
 ssh_user: # TODO: set ssh_user
 ssh_keys_file: # TODO: set ssh_keys_file
 github_repository: "hedera-dev/playground-backend"
