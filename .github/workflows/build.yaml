@@ -1,0 +1,54 @@
+name: Build Playground API
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag'
+        required: true
+        default: 'latest'
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
+          service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 363.0.0'
+
+      - name: Configure Docker to use gcloud as a credential helper
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_ID }}
+
+      - name: Build docker image
+        run: |
+          echo "Building image "
+          docker build -t ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }} ./app/playground-api/.
+          
+      - name: Push Docker image to Google Artifact Registry
+        run: |
+          docker push ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }}
+
+      # Should we tag?
+      #- name: Create and push a new git tag
+      #  if: ${{ github.ref == 'refs/heads/develop' && github.event.inputs.image_tag != 'latest' }}
+      #  run: |
+      #    git config --global user.name 'github-actions[bot]'
+      #    git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+      #    git fetch --all
+      #    git checkout develop       
+      #    git tag -a "v${{ github.event.inputs.image_tag }}" -m "Version ${{ github.event.inputs.image_tag }}"
+      #    git push origin "v${{ github.event.inputs.image_tag }}"

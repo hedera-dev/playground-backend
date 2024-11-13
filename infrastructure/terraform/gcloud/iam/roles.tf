@@ -8,6 +8,7 @@ resource "google_project_iam_custom_role" "playground_role" {
   permissions = [
     "artifactregistry.dockerimages.get",
     "artifactregistry.repositories.downloadArtifacts",
+    "artifactregistry.repositories.uploadArtifacts",
     "compute.instances.list",
     "compute.instanceGroupManagers.get",
     "compute.instances.get",

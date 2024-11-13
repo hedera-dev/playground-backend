@@ -1,4 +1,4 @@
-name: Update instances
+name: Deploy Playground Application
 
 on:
   workflow_dispatch: # You can change this to other triggers like 'push' or 'schedule'
@@ -12,7 +12,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Checkout the repository
     - name: Checkout code
       uses: actions/checkout@v3
 
@@ -32,7 +31,7 @@ jobs:
         gcloud storage cp ./infrastructure/terraform/gcloud/templates/playground/docker-compose.yaml gs://kbucket-playground/playground/docker-compose.yaml
 
     # Get the list of instance IPs
-    - name: Get IPs of Instances
+    - name: Get IPs of Instances and update
       id: ssh-vms
       run: |
         instance_group="${{vars.GCP_INSTANCE_GROUP_PLAYGROUND_NAME}}"
