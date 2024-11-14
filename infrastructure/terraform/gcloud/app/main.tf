@@ -70,27 +70,3 @@ module "api-gateway" {
 
   bucket_templates    = local.deployment["bucket_templates"]
 }
-
-// TODO: Enable cloud monitoring
-# module "cloud-operations_agent-policy" {
-#   source    = "terraform-google-modules/cloud-operations/google//modules/agent-policy"
-#   version   = "0.6.0"
-
-#   project_id = local.deployment["project_id"]
-#   policy_id  = "ops-agents-policy-${local.deployment["environment_id"]}"
-#   os_types = [
-#     {
-#       short_name = "debian"
-#       version    = "11"
-#     },
-#   ]
-
-#   agent_rules = [
-#     {
-#       type = "logging"
-
-#     }, {
-#       type = "monitoring"
-#     }
-#   ]
-# }

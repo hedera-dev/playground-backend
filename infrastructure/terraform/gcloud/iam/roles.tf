@@ -20,6 +20,8 @@ resource "google_project_iam_custom_role" "playground_role" {
 	  "compute.globalAddresses.list",
     "logging.logEntries.create",
     "monitoring.timeSeries.create",
+    "osconfig.osPolicyAssignments.get",
+    "osconfig.osPolicyAssignments.list",
     "storage.objects.get",
     "storage.objects.list",
     "storage.objects.create",
