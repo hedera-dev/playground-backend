@@ -30,11 +30,6 @@ variable "ssh_keys_file" {
   description = "Public key of the known user to deploy components"
 }
 
-variable "service_port" {
-  description = "Service Port"
-  default = "80"
-}
-
 variable "haproxy_config_content" {
   description ="haproxy.cfg"
 }
@@ -49,4 +44,8 @@ variable "lb_playground_port" {
 
 variable "bucket_templates" {
   description = "Bucket that contains config templates"
+}
+
+variable "static_ip_gw" {
+  description = "Static ip gw"
 }

@@ -5,6 +5,8 @@ resource "google_compute_region_instance_template" "rit-gw" {
   name         = "rt-gw-${var.environment_id}"
   machine_type = "n2d-standard-2"
 
+  tags = ["gateway"]
+
   disk {
     source_image = "projects/debian-cloud/global/images/debian-11-bullseye-v20241009"
     auto_delete  = true
@@ -18,6 +20,7 @@ resource "google_compute_region_instance_template" "rit-gw" {
     network     = var.network_name
     subnetwork  = var.subnetwork_name
     access_config {
+      nat_ip = var.static_ip_gw
     }
   }
 
@@ -73,7 +76,7 @@ resource "google_compute_region_instance_template" "rit-gw" {
     sudo chmod 666 /home/docker/docker-compose.yaml
 
     # Replace variables
-    sudo sed -i 's|{{ service.port }}|${var.service_port}|g' /home/docker/haproxy.cfg
+sudo sed -i 's|{{ service.port }}|${var.service_port}|g' /home/docker/haproxy.cfg
     sudo sed -i 's|{{ playground.host }}|${var.lb_playground_ip}|g' /home/docker/haproxy.cfg
     sudo sed -i 's|{{ playground.port }}|${var.lb_playground_port}|g' /home/docker/haproxy.cfg
 

@@ -27,6 +27,11 @@ locals {
   deployment = yamldecode(file("./templates/deployment.yml"))
 }
 
+data "google_compute_address" "static_ip_gw" {
+  name   = "ip-gw-${local.deployment["environment_id"]}"
+  region = local.deployment["region"]       
+}
+
 module "playground" {
   source = "./modules/playground"
 
@@ -64,9 +69,9 @@ module "api-gateway" {
   ssh_keys_file       = local.deployment["ssh_keys_file"]
 
   haproxy_config_content = file("./templates/api-gateway/haproxy.cfg")
-  service_port        = "80"
   lb_playground_ip    = module.playground.lb_playground_ip
   lb_playground_port  = module.playground.lb_playground_port
+  static_ip_gw        = data.google_compute_address.static_ip_gw.address
 
   bucket_templates    = local.deployment["bucket_templates"]
 }
