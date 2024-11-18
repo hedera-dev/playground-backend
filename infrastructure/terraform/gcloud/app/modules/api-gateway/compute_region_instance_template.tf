@@ -69,16 +69,19 @@ resource "google_compute_region_instance_template" "rit-gw" {
     sudo mkdir /home/docker
     cd /home/docker
 
-    sudo gsutil cp gs://${var.bucket_templates}/api-gateway/haproxy.cfg /home/docker/haproxy.cfg
+    sudo gsutil cp gs://${var.bucket_templates}/api-gateway/dynamic.yaml /home/docker/dynamic.yaml
     sudo gsutil cp gs://${var.bucket_templates}/api-gateway/docker-compose.yaml /home/docker/docker-compose.yaml
 
-    sudo chmod 666 /home/docker/haproxy.cfg
+    sudo chmod 666 /home/docker/dynamic.yaml
     sudo chmod 666 /home/docker/docker-compose.yaml
 
+    sudo mkdir -p /home/docker/letsencrypt
+    sudo touch /home/docker/letsencrypt/acme.json
+    sudo chmod 600 /home/docker/letsencrypt/acme.json
+
     # Replace variables
-sudo sed -i 's|{{ service.port }}|${var.service_port}|g' /home/docker/haproxy.cfg
-    sudo sed -i 's|{{ playground.host }}|${var.lb_playground_ip}|g' /home/docker/haproxy.cfg
-    sudo sed -i 's|{{ playground.port }}|${var.lb_playground_port}|g' /home/docker/haproxy.cfg
+    sudo sed -i 's|{{ playground.host }}|${var.lb_playground_ip}|g' /home/docker/dynamic.yaml
+    sudo sed -i 's|{{ playground.port }}|${var.lb_playground_port}|g' /home/docker/dynamic.yaml
 
     # Run docker containers
     sudo docker compose up -d

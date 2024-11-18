@@ -1,0 +1,21 @@
+http:
+  routers:
+    playground:
+      rule: "PathPrefix(`/api/playground`)"
+      service: playground-service
+      middlewares:
+        - playground-ratelimit
+      tls:
+        certResolver: myresolver
+
+  services:
+    playground-service:
+      loadBalancer:
+        servers:
+          - url: "http://{{ playground.host }}:{{ playground.port }}"
+
+  middlewares:
+    playground-ratelimit:
+      rateLimit:
+        average: 60
+        period: 1m

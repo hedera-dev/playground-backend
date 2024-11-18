@@ -1,9 +1,32 @@
 services:
-  api_gw:
-    image: haproxy:2.8
-    container_name: api_gw
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker=true
+      - --providers.file.filename=/etc/traefik/dynamic.yaml
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      # - --certificatesresolvers.myresolver.acme.email=youremail@example.com
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+      - --log.level=DEBUG
     ports:
       - "80:80"
+      - "443:443"
+      #- "8080:8080" # Dashboard de Traefik (optional, disable in production)
     volumes:
-      - /home/docker/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    restart: unless-stopped
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./letsencrypt:/letsencrypt
+      - ./dynamic.yaml:/etc/traefik/dynamic.yaml
+
+  whoami:
+    image: "traefik/whoami"
+    container_name: "whoami-service"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`patri.kabila.app`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
