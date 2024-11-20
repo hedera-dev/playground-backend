@@ -5,6 +5,8 @@ http:
       service: playground-service
       middlewares:
         - playground-ratelimit
+        - cors-headers
+        - required-auth
       tls:
         certResolver: myresolver
 
@@ -19,3 +21,27 @@ http:
       rateLimit:
         average: 60
         period: 1m
+    cors-headers:
+      headers:
+        accessControlAllowOriginList: 
+          - "*"
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+          - PUT
+          - DELETE
+        accessControlAllowHeaders:
+          - Content-Type
+          - Authorization
+        accessControlAllowCredentials: true
+    required-auth:
+      plugin:
+        validate-headers:
+          headers:
+            - name: "Authorization"
+              required: true
+              matchtype: one
+              values:
+                - "^Bearer .*"
+              regex: true
