@@ -4,14 +4,39 @@ Playground exposes an API for managing packages and executing user-defined code.
 
 The API is broken in to 2 main sections - packages and jobs.
 
-The API is exposed from the container, by default on port 2000, at `/api/v2/`.
+The API is exposed from the container, by default on port 2000, at `/api/playground/`.
 
 All inputs are validated, and if an error occurs, a 4xx or 5xx status code is returned.
 In this case, a JSON payload is sent back containing the error message as `message`
 
+
+## Health
+
+### `GET /api/playground/health`
+
+Returns the current time (Used to check health of the service)
+
+#### Response
+-   `{}.currentTime`: Curren Time
+
+#### Example
+
+```
+GET /api/playground/health
+```
+
+```json
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "currentTime": "Fri Nov 22 2024 12:30:17 GMT+0000 (Coordinated Universal Time)"
+}
+```
+
 ## Runtimes
 
-### `GET /api/v2/runtimes`
+### `GET /api/playground/runtimes`
 
 Returns a list of available languages, including the version, runtime and aliases.
 
@@ -25,7 +50,7 @@ Returns a list of available languages, including the version, runtime and aliase
 #### Example
 
 ```
-GET /api/v2/runtimes
+GET /api/playground/runtimes
 ```
 
 ```json
@@ -34,22 +59,27 @@ Content-Type: application/json
 
 [
   {
-    "language": "bash",
-    "version": "5.1.0",
-    "aliases": ["sh"]
+      "language": "java",
+      "version": "21.0.2",
+      "aliases": []
   },
   {
-    "language": "javascript",
-    "version": "15.10.0",
-    "aliases": ["node-javascript", "node-js", "javascript", "js"],
-    "runtime": "node"
+      "language": "javascript",
+      "version": "20.11.1",
+      "aliases": [
+          "node-javascript",
+          "node-js",
+          "javascript",
+          "js"
+      ],
+      "runtime": "node"
   }
 ]
 ```
 
 ## Execute
 
-### `POST /api/v2/execute`
+### `POST /api/playground/execute`
 
 Runs the given code, using the given runtime and arguments, returning the result.
 
@@ -88,7 +118,7 @@ Runs the given code, using the given runtime and arguments, returning the result
 #### Example
 
 ```json
-POST /api/v2/execute
+POST /api/playground/execute
 Content-Type: application/json
 
 {
@@ -128,7 +158,7 @@ Content-Type: application/json
 
 ## Packages
 
-### `GET /api/v2/packages`
+### `GET /api/playground/packages`
 
 Returns a list of all possible packages, and whether their installation status.
 
@@ -141,7 +171,7 @@ Returns a list of all possible packages, and whether their installation status.
 #### Example
 
 ```
-GET /api/v2/packages
+GET /api/playground/packages
 ```
 
 ```json
@@ -150,14 +180,14 @@ Content-Type: application/json
 
 [
   {
-    "language": "node",
-    "language_version": "15.10.0",
-    "installed": true
+      "language": "java",
+      "language_version": "21.0.2",
+      "installed": true
   },
   {
-    "language": "bash",
-    "language_version": "5.1.0",
-    "installed": true
+      "language": "node",
+      "language_version": "20.11.1",
+      "installed": true
   }
 ]
 ```
