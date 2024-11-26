@@ -13,8 +13,8 @@ services:
       # - --certificatesresolvers.myresolver.acme.email=youremail@example.com
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
       - --log.level=DEBUG
-      - --experimental.plugins.validate-headers.moduleName=github.com/frankforpresident/traefik-plugin-validate-headers
-      - --experimental.plugins.validate-headers.version=v0.0.1
+      # - --experimental.plugins.validate-headers.moduleName=github.com/frankforpresident/traefik-plugin-validate-headers
+      # - --experimental.plugins.validate-headers.version=v0.0.1
     ports:
       - "80:80"
       - "443:443"

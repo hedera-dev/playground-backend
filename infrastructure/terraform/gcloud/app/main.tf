@@ -19,7 +19,7 @@ terraform {
 terraform {
   backend "gcs" {
     bucket = "playground-terraform-develop"
-    prefix = "playground-app/state"
+    prefix = "poc/state"
   }
 }
 
@@ -69,6 +69,7 @@ module "api-gateway" {
   ssh_keys_file       = local.deployment["ssh_keys_file"]
 
   haproxy_config_content = file("./templates/api-gateway/haproxy.cfg")
+  playground_domain   = local.deployment["playground_domain"]
   lb_playground_ip    = module.playground.lb_playground_ip
   lb_playground_port  = module.playground.lb_playground_port
   static_ip_gw        = data.google_compute_address.static_ip_gw.address

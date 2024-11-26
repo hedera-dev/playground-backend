@@ -1,9 +1,8 @@
 project_id: "playground-develop-441415"
 region: "us-central1"
 zone: "us-central1-a"
-name: # TODO: set name
-environment_id: # TODO: set environment_id 
-ssh_user: # TODO: set ssh_user
+environment_id: 'poc'
+ssh_user: "deploy"
 ssh_keys_file: # TODO: set ssh_keys_file
-github_repository: "hedera-dev/playground-backend"
 bucket_templates: "playground-templates-dev"
+playground_domain: "dev-playground.kabila.app"

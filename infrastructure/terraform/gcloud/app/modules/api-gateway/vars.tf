@@ -34,6 +34,10 @@ variable "haproxy_config_content" {
   description ="haproxy.cfg"
 }
 
+variable "playground_domain" {
+  description = "Domain of playground service"
+}
+
 variable "lb_playground_ip" {
   description = "IP Address of playground load balancer"
 }

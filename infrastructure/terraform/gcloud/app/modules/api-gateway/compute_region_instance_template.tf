@@ -80,6 +80,7 @@ resource "google_compute_region_instance_template" "rit-gw" {
     sudo chmod 600 /home/docker/letsencrypt/acme.json
 
     # Replace variables
+    sudo sed -i 's|{{ playground.domain }}|${var.playground_domain}|g' /home/docker/dynamic.yaml
     sudo sed -i 's|{{ playground.host }}|${var.lb_playground_ip}|g' /home/docker/dynamic.yaml
     sudo sed -i 's|{{ playground.port }}|${var.lb_playground_port}|g' /home/docker/dynamic.yaml
 

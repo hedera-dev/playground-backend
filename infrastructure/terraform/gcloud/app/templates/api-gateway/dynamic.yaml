@@ -1,12 +1,12 @@
 http:
   routers:
     playground:
-      rule: "PathPrefix(`/api/playground`)"
+      rule: "Host(`{{ playground.domain }}`) && PathPrefix(`/api/playground`)"
       service: playground-service
       middlewares:
-        - playground-ratelimit
         - cors-headers
-        - required-auth
+        - playground-ratelimit
+        # - required-auth
       tls:
         certResolver: myresolver
 
@@ -35,13 +35,13 @@ http:
           - Content-Type
           - Authorization
         accessControlAllowCredentials: true
-    required-auth:
-      plugin:
-        validate-headers:
-          headers:
-            - name: "Authorization"
-              required: true
-              matchtype: one
-              values:
-                - "^Bearer .*"
-              regex: true
+    # required-auth:
+    #   plugin:
+    #     validate-headers:
+    #       headers:
+    #         - name: "Authorization"
+    #           required: true
+    #           matchtype: one
+    #           values:
+    #             - "^Bearer .*"
+    #           regex: true
