@@ -30,7 +30,7 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 WORKDIR /pkgs_manager
 COPY install_package.sh ./
 
-RUN ./install_package.sh "java" "21.0.2" "https://storage.googleapis.com/playground_pkgs/java-21.0.2.pkg.tar.gz" "378adb507901c01f25fa6f647f660d5ab02b5c8a4b447b6474fe7514bc8a6550"
+RUN ./install_package.sh "java" "21.0.2" "https://storage.googleapis.com/playground_pkgs/java-21.0.2.pkg.tar.gz" "ec30f4d3441c1cd92d8b8dc4ecbdce1ab7f7f40f29fca79a331ebef44582a534"
 RUN ./install_package.sh "node" "20.11.1" "https://storage.googleapis.com/playground_pkgs/node-20.11.1.pkg.tar.gz" "871d8810172bc0893bb81bda3af99aa16213567cef77a1350099e4143bcb30bd"
 
 RUN apt-get remove --purge -y libkrb5-3 && \
