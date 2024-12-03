@@ -207,6 +207,9 @@ class Job {
                 message = 'stderr length exceeded';
                 status = 'EL';
                 this.logger.info(message);
+                const remainingSize = this.runtime.output_max_size - stderr.length;
+                stderr += data.slice(0, remainingSize);
+                output += data.slice(0, remainingSize);
                 try {
                     process.kill(proc.pid, 'SIGABRT');
                 } catch (e) {
@@ -232,6 +235,9 @@ class Job {
                 message = 'stdout length exceeded';
                 status = 'OL';
                 this.logger.info(message);
+                const remainingSize = this.runtime.output_max_size - stderr.length;
+                stderr += data.slice(0, remainingSize);
+                output += data.slice(0, remainingSize);
                 try {
                     process.kill(proc.pid, 'SIGABRT');
                 } catch (e) {
