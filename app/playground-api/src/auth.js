@@ -2,26 +2,36 @@ const paseto = require("paseto");
 const config = require("./config");
 const logger = require("logplease").create("auth");
 
+const SESSION_COOKIE = "hedera-portal-session";
 class Auth {
+	
 	constructor() {
-		this.secretKey = this.keyObject(config.secret_key)
-
+		this.publicKey = this.keyObject(config.public_key);
 	}
 
 	keyObject(keyHex) {
-		if (!keyHex)
-			return ""
+		if (!keyHex) return "";
 		const keyBytes = Buffer.from(keyHex, "hex");
 		const key = paseto.V4.bytesToKeyObject(keyBytes);
 
 		return key;
 	}
 
-	async validateUserToken(token) {
+	async validateToken(signedToken) {
 		try {
-			const claims = await paseto.V4.verify(token, this.secretKey);
-			// TODO: CHECK EXPIRATION?
-			logger.debug("~ Auth ~ validateUserToken ~ claims:", claims); // TODO: REMOVE
+			const claims = await paseto.V4.verify(signedToken, this.publicKey);
+			
+			if (!claims.exp) {
+				return false
+			}
+		
+			const expirationDate = new Date(claims.exp);
+			const now = new Date();
+		
+			if (now > expirationDate) {
+				return false
+			}
+
 			return true;
 		} catch (e) {
 			// Invalid token
@@ -32,7 +42,10 @@ class Auth {
 	authMiddleware() {
 		return async (req, res, next) => {
 			try {
-				if ((req.method == "GET" && req.path == '/health') || !this.secretKey) {
+				if (
+					(req.method == "GET" && req.path == "/health") ||
+					!this.publicKey
+				) {
 					return next();
 				}
 
@@ -45,23 +58,33 @@ class Auth {
 						const [scheme, credentials] = authorization.split(" ");
 
 						if (scheme === "Bearer") {
-							const valid = await this.validateUserToken(
+							const valid = await this.validateToken(
 								credentials
 							);
 
 							if (valid) {
-								// TODO: SET SESSION
 								return next();
 							}
 						}
 					}
+
+					const sessionCookie = req.cookies[SESSION_COOKIE];
+
+					if (sessionCookie != null) {
+						const valid =
+							await this.validateToken(
+								sessionCookie
+							);
+
+						if (valid) {	
+							return next();
+						}
+					}
 				}
-				console.log("holaa")
 
 				return res
 					.status(401)
 					.json({ message: "Invalid or expired token" });
-					
 			} catch (error) {
 				return res.status(500).json({
 					message: "Internal Server Error",

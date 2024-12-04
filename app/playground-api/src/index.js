@@ -11,9 +11,11 @@ const fss = require('fs');
 const body_parser = require('body-parser');
 const runtime = require('./runtime');
 const Auth = require('./auth');
+const cookieParser = require('cookie-parser');
 
 const logger = Logger.create('index');
 const app = express();
+app.use(cookieParser());
 
 (async () => {
     logger.info('Setting loglevel to', config.log_level);

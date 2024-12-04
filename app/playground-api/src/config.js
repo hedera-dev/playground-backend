@@ -8,11 +8,11 @@ const options = {
         default: '',
         validators: [],
     },
-    secret_key: {
-        desc: 'Secret key used to sign and verify personal access tokens',
-        default: `${process.env['SECRET_KEY'] || ''}`,
+    public_key: {
+        desc: 'Publick key used to verify personal access tokens and sessions',
+        default: `${process.env['PUBLIC_KEY'] || ''}`,
         validators: [
-            x => x.length == 0 || /^[a-fA-F0-9]{128}$/.test(x) || `Secret key must be exactly 128 hexadecimal characters ()`,
+            x => x.length == 0 || /^[a-fA-F0-9]{64}$/.test(x) || `Publick key must be exactly 64 hexadecimal characters`,
         ],
     },
     log_level: {
