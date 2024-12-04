@@ -6,4 +6,5 @@
 !*/*/run
 !*/*/compile
 !*/*/test.*
+!*/*/pom.xml
 .DS_Store
