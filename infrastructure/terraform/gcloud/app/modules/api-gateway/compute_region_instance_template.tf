@@ -65,7 +65,7 @@ resource "google_compute_region_instance_template" "rit-gw" {
 
     # Configure Docker Registry with Google Container Registry
     sudo docker-credential-gcr configure-docker
-    sudo gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+    sudo gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
     sudo mkdir /home/docker
     cd /home/docker
 

@@ -1,6 +1,6 @@
 resource "google_compute_region_health_check" "health-check-gw" {
   name               = "health-check-gw-${var.environment_id}"
-  region             = "us-central1"
+  region             = var.region
   timeout_sec        = 5
   check_interval_sec = 60
   healthy_threshold  = 2

@@ -14,8 +14,8 @@ resource "google_compute_region_instance_group_manager" "rig-gw" {
 #   }
 
   distribution_policy_zones = [
-    "us-central1-a",
-    "us-central1-b",
-    "us-central1-c"
+    "${var.region}-a",
+    "${var.region}-b",
+    "${var.region}-c"
   ]
 }
