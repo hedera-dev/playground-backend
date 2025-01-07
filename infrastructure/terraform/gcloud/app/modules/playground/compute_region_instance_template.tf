@@ -66,7 +66,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
 
     # Configure Docker Registry with Google Container Registry
     sudo docker-credential-gcr configure-docker
-    sudo gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+    sudo gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
 
     sudo mkdir /home/docker
     cd /home/docker
@@ -75,6 +75,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
 
     sudo chmod 666 docker-compose.yaml
 
+    sudo sed -i 's|{{ region }}|${var.region}|g' /home/docker/docker-compose.yaml
     sudo sed -i 's|{{ project_id }}|${var.project_id}|g' /home/docker/docker-compose.yaml
 
     # Run docker containers
