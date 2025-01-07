@@ -58,11 +58,12 @@ jobs:
           path: /tmp/playground-api${{ github.event.inputs.image_tag }}.tar
           retention-days: 1     
 
-  deploy:
+  build_and_push:
     environment: ${{ 
       github.ref == 'refs/heads/master' && 'production' || 
       'develop' }}
     runs-on: ubuntu-latest
+    needs: build_on_master
     permissions:
       contents: 'read'
       id-token: 'write'
