@@ -55,7 +55,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.image_tag }}
-          path: /tmp/playground-api${{ github.event.inputs.image_tag }}.tar
+          path: /tmp/playground-api_${{ github.event.inputs.image_tag }}.tar
           retention-days: 1     
 
   build_and_push:
