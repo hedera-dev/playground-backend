@@ -10,7 +10,7 @@ on:
 jobs:
   update-vms:
     environment: ${{ 
-      github.ref == 'refs/heads/main' && 'production' || 
+      github.ref == 'refs/heads/master' && 'production' || 
       'develop' }}
     runs-on: ubuntu-latest
     permissions:
