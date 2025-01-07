@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+EXECUTION_PATH="$PWD"
+REAL_PATH="$(dirname "$(realpath "$0")")"
+cd "$REAL_PATH"
+
+
+case $1 in
+    help)
+        echo "Commands:"
+
+        echo " list-pkgs                               Lists all packages that can be built"
+        echo " build-pkg <package> <version> [builder] Build a package [with desired builder image]"
+
+        ;;
+
+    list-pkgs) find packages -maxdepth 2 | awk -F/ '$2 && $3{ print $2 "-" $3 }' | column ;;
+
+    build-pkg)
+        PKGSLUG="$2-$3"
+        BUILDER="${4:-playground-builder}"
+        echo "Building $PKGSLUG"
+        echo "Ensuring latest builder image"
+        docker build . -t "$BUILDER"
+        docker run --rm --platform=linux/amd64 -v "$PWD:/builder" "$BUILDER" "$PKGSLUG"
+
+        ;;
+
+    *)
+        $0 help
+        ;;
+esac

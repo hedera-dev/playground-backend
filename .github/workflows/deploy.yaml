@@ -1,0 +1,79 @@
+name: Deploy Playground Application
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment:
+        description: 'Deployment - (instance group)'
+        required: true
+        default: 'poc'
+jobs:
+  update-vms:
+    environment: ${{ 
+      github.ref == 'refs/heads/master' && 'production' || 
+      'develop' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Checkout playground repository
+      uses: actions/checkout@v4
+      with:
+        repository: 'hedera-dev/playground-backend'  
+        ref: ${{ github.ref }}
+        path: playground-backend
+
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        version: '>= 363.0.0'
+
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
+        service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+
+    - name: Upload docker-compose file to GCS bucket
+      run: |
+        gcloud storage cp ./playground-backend/infrastructure/terraform/gcloud/app/templates/playground/docker-compose.yaml gs://${{vars.PLAYGROUND_BUCKET_NAME}}/playground/docker-compose.yaml
+    # Get the list of instance IPs
+    - name: Get IPs of Instances and update
+      id: ssh-vms
+      run: |
+        instance_group="rig-playground-${{ github.event.inputs.deployment }}"
+        region="${{ vars.GCP_INSTANCES_PLAYGROUND_REGION }}"
+        
+        # List instances in the regional instance group and get their zones
+        gcloud compute instance-groups managed list-instances $instance_group \
+          --region=$region --format="value(instance.scope().segment(-1))" > instance_info.txt
+    
+        echo "Contents of instance_info.txt:"
+        cat instance_info.txt
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ( while IFS= read -r instance; do
+          echo "Processing instance: $instance"
+          ip=$(gcloud compute instances list --filter="name=('$instance')" --format="value(networkInterfaces[0].accessConfigs[0].natIP)")
+          if [[ -n $ip ]]; then
+
+            echo "Found IP for $instance: $ip"
+            ssh-keyscan $ip >> ~/.ssh/known_hosts
+            echo "Copying file"
+            scp -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ./playground-backend/infrastructure/terraform/gcloud/app/templates/playground/docker-compose.yaml ${{vars.GCP_INSTANCE_PLAYGROUND_USERNAME}}@$ip:/home/docker/docker-compose.yaml < /dev/null || true
+            echo "Replace variables"
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{vars.GCP_INSTANCE_PLAYGROUND_USERNAME}}@$ip "sudo sed -i 's|{{ region }}|${{ vars.GCP_INSTANCES_PLAYGROUND_REGION }}|g' /home/docker/docker-compose.yaml"
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{vars.GCP_INSTANCE_PLAYGROUND_USERNAME}}@$ip "sudo sed -i 's|{{ project_id }}|${{ vars.GCP_PROJECT_ID }}|g' /home/docker/docker-compose.yaml"
+            echo "Docker compose down"
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{vars.GCP_INSTANCE_PLAYGROUND_USERNAME}}@$ip 'cd /home/docker && sudo docker compose down' < /dev/null || true
+            echo "Docker compose up -d"
+            ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{vars.GCP_INSTANCE_PLAYGROUND_USERNAME}}@$ip 'cd /home/docker && sudo docker compose up -d' < /dev/null || true
+          else
+            echo "No external IP found for instance $instance"
+          fi  
+        done < instance_info.txt )

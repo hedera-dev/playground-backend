@@ -1,0 +1,25 @@
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.docker=true
+      - --providers.file.filename=/etc/traefik/dynamic.yaml
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      # - --certificatesresolvers.myresolver.acme.email=youremail@example.com
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+      - --log.level=DEBUG
+      # - --experimental.plugins.validate-headers.moduleName=github.com/frankforpresident/traefik-plugin-validate-headers
+      # - --experimental.plugins.validate-headers.version=v0.0.1
+    ports:
+      - "80:80"
+      - "443:443"
+#      - "8080:8080" # Dashboard de Traefik (optional, disable in production)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./letsencrypt:/letsencrypt
+      - ./dynamic.yaml:/etc/traefik/dynamic.yaml
