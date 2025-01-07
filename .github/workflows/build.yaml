@@ -9,15 +9,87 @@ on:
         default: 'latest'
 
 jobs:
-  build_and_push:
+  build_on_main:
+    runs-on: ubuntu-latest
+    environment: develop
+    permissions:
+      contents: 'read'
+      id-token: 'write'    
+    outputs:
+      develop_image_tag: ${{ steps.set-tag.outputs.develop_image_tag }}
+
+    steps:
+      - uses: 'google-github-actions/auth@v2'
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDP }}
+          service_account: ${{ vars.GCP_IDP_SERVICE_ACCOUNT_ARTIFACT_REGISTRY }}
+
+      - name: 'Set up Cloud SDK'
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: 'google-github-actions/setup-gcloud@v2'
+        with:
+          version: '>= 363.0.0'
+
+      - name: Configure Docker to use gcloud as a credential helper
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_ID }}
+
+      - name: Pull the develop Docker image
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          docker pull ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }}
+      
+      - id: set-tag
+        name: Set docker image tag output
+        run: echo "develop_image_tag=${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+      
+      - name: Save Docker image as tar
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          docker save -o /tmp/playground-api_${{ github.event.inputs.image_tag }}.tar ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }}
+
+      - name: Upload artifact
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.image_tag }}
+          path: /tmp/playground-api${{ github.event.inputs.image_tag }}.tar
+          retention-days: 1     
+
+  deploy:
+    environment: ${{ 
+      github.ref == 'refs/heads/main' && 'production' || 
+      'develop' }}
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
       id-token: 'write'
 
     steps:
+      - env:
+          DEVELOP_IMAGE_TAG: ${{ needs.build_on_main.outputs.develop_image_tag }}
+        run: echo "$DEVELOP_IMAGE_TAG"
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          name: ${{ github.event.inputs.image_tag }}
+          path: /tmp
+      
+      - name: Load image
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          docker load --input /tmp/playground-api_${{ github.event.inputs.image_tag }}.tar
+          docker image ls -a
+
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          repository: 'hedera-dev/playground-backend'  
+          ref: ${{ github.ref }}
       
       - uses: 'google-github-actions/auth@v2'
         with:
@@ -33,10 +105,15 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_ID }}
 
-      - name: Build docker image
+      - name: Build or Tag Docker image
         run: |
-          echo "Building image "
-          docker build -t ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }} ./app/playground-api/.
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "Tagging image: ${{ needs.build_on_main.outputs.develop_image_tag }} - to - ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }}"
+            docker tag ${{ needs.build_on_main.outputs.develop_image_tag }} ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }}
+          else
+            echo "Building image for develop branch"
+            docker build -t ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/playground-api:${{ github.event.inputs.image_tag }} ./app/playground-api/.
+          fi
           
       - name: Push Docker image to Google Artifact Registry
         run: |
