@@ -19,6 +19,11 @@ jobs:
       develop_image_tag: ${{ steps.set-tag.outputs.develop_image_tag }}
 
     steps:
+      - name: Debug some vars
+        run: |
+          echo "GCP_WORKLOAD_IDP: ${{ vars.GCP_WORKLOAD_IDP }}"
+          echo "GCP_IDP_SERVICE_ACCOUNT_ARTIFACT_REGISTRY: ${{ vars.GCP_IDP_SERVICE_ACCOUNT_ARTIFACT_REGISTRY }}"
+
       - uses: 'google-github-actions/auth@v2'
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
