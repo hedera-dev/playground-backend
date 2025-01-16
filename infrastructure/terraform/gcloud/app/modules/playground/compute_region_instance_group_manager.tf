@@ -26,7 +26,7 @@ resource "google_compute_region_autoscaler" "autoscaler-playground" {
   target = google_compute_region_instance_group_manager.rig-playground.id
 
   autoscaling_policy {
-    max_replicas    = 9
+    max_replicas    = 20
     min_replicas    = 3
 
     cpu_utilization {
