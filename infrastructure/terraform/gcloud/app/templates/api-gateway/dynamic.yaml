@@ -37,7 +37,7 @@ http:
     cors-headers:
       headers:
         accessControlAllowOriginList: 
-          - "*"
+          - "https://portal.hedera.com"
         accessControlAllowMethods:
           - GET
           - POST
