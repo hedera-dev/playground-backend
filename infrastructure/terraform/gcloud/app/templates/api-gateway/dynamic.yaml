@@ -1,12 +1,19 @@
 http:
   routers:
+    playground-execution:
+      rule: "Host(`{{ playground.domain }}`) && PathPrefix(`/api/playground/execute`)"
+      service: playground-service
+      middlewares:
+        - cors-headers
+        - playground-execution-ratelimit
+      tls:
+        certResolver: myresolver
     playground:
       rule: "Host(`{{ playground.domain }}`) && PathPrefix(`/api/playground`)"
       service: playground-service
       middlewares:
         - cors-headers
         - playground-ratelimit
-        # - required-auth
       tls:
         certResolver: myresolver
 
@@ -17,8 +24,14 @@ http:
           - url: "http://{{ playground.host }}:{{ playground.port }}"
 
   middlewares:
+    playground-execution-ratelimit:
+      rateLimit:
+        burst: 1
+        average: 20
+        period: 1m
     playground-ratelimit:
       rateLimit:
+        burst: 3
         average: 60
         period: 1m
     cors-headers:
@@ -35,13 +48,3 @@ http:
           - Content-Type
           - Authorization
         accessControlAllowCredentials: true
-    # required-auth:
-    #   plugin:
-    #     validate-headers:
-    #       headers:
-    #         - name: "Authorization"
-    #           required: true
-    #           matchtype: one
-    #           values:
-    #             - "^Bearer .*"
-    #           regex: true

@@ -10,7 +10,7 @@ fi
 
 source environment
 
-bin/npm install -g @hashgraph/sdk
+bin/npm install -g @hashgraph/sdk@2.56.0
 
 if [ $? -ne 0 ]; then
   echo "Error: Cannot install @hashgraph/sdk"

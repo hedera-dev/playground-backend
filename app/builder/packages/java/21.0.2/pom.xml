@@ -20,8 +20,8 @@
         <!-- Hedera SDK -->
         <dependency>
             <groupId>com.hedera.hashgraph</groupId>
-            <artifactId>sdk-full</artifactId>
-            <version>2.41.0</version>
+            <artifactId>sdk</artifactId>
+            <version>2.46.0</version>
         </dependency>
 
         <!-- SLF4J (logging) -->
