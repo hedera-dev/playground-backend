@@ -28,9 +28,9 @@ class Auth {
 			const expirationDate = new Date(claims.exp);
 			const now = new Date();
 		
-			if (now > expirationDate) {
-				return false
-			}
+			// if (now > expirationDate) {
+			// 	return false
+			// }
 
 			return true;
 		} catch (e) {
