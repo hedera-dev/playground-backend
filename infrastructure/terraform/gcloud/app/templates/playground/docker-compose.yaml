@@ -18,7 +18,7 @@ services:
       PUBLIC_KEY: ca7fd8408500327b40d4da02dbc34881b2a379ccd3913a9d06e810a8fdb66329
       RUN_CPU_TIME: 30000
       RUN_MEMORY_LIMIT: 500000000
-      RUN_TIMEOUT: 60000
+      RUN_TIMEOUT: 45000
     tmpfs:
       - /tmp:exec
 
