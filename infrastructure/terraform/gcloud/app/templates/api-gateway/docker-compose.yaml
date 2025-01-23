@@ -12,7 +12,7 @@ services:
       - --certificatesresolvers.myresolver.acme.tlschallenge=true
       # - --certificatesresolvers.myresolver.acme.email=youremail@example.com
       - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
-      - --log.level=DEBUG
+      - --log.level=INFO
       # - --experimental.plugins.validate-headers.moduleName=github.com/frankforpresident/traefik-plugin-validate-headers
       # - --experimental.plugins.validate-headers.version=v0.0.1
     ports:

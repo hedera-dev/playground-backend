@@ -27,7 +27,7 @@ http:
     playground-execution-ratelimit:
       rateLimit:
         burst: 1
-        average: 20
+        average: 15
         period: 1m
     playground-ratelimit:
       rateLimit:
