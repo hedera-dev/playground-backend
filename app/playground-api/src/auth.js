@@ -17,9 +17,9 @@ class Auth {
 		return key;
 	}
 
-	async validateToken(signedToken) {
+	async validateToken(signedToken) { 
 		try {
-			const claims = await paseto.V4.verify(signedToken, this.publicKey);
+			const claims = await paseto.V4.verify(signedToken, this.publicKey, {ignoreExp: true});
 			
 			if (!claims.exp) {
 				return false
