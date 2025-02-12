@@ -10,15 +10,7 @@ function get_job(body) {
     let {
         language,
         version,
-        args,
-        stdin,
         files,
-        compile_memory_limit,
-        run_memory_limit,
-        run_timeout,
-        compile_timeout,
-        run_cpu_time,
-        compile_cpu_time,
     } = body;
 
     return new Promise((resolve, reject) => {
@@ -64,52 +56,23 @@ function get_job(body) {
             });
         }
 
-        for (const constraint of ['memory_limit', 'timeout', 'cpu_time']) {
-            for (const type of ['compile', 'run']) {
-                const constraint_name = `${type}_${constraint}`;
-                const constraint_value = body[constraint_name];
-                const configured_limit = rt[`${constraint}s`][type];
-                if (!constraint_value) {
-                    continue;
-                }
-                if (typeof constraint_value !== 'number') {
-                    return reject({
-                        message: `If specified, ${constraint_name} must be a number`,
-                    });
-                }
-                if (configured_limit <= 0) {
-                    continue;
-                }
-                if (constraint_value > configured_limit) {
-                    return reject({
-                        message: `${constraint_name} cannot exceed the configured limit of ${configured_limit}`,
-                    });
-                }
-                if (constraint_value < 0) {
-                    return reject({
-                        message: `${constraint_name} must be non-negative`,
-                    });
-                }
-            }
-        }
-
         resolve(
             new Job({
                 runtime: rt,
-                args: args ?? [],
-                stdin: stdin ?? '',
+                args: [],
+                stdin: '',
                 files,
                 timeouts: {
-                    run: run_timeout ?? rt.timeouts.run,
-                    compile: compile_timeout ?? rt.timeouts.compile,
+                    run: rt.timeouts.run,
+                    compile: rt.timeouts.compile,
                 },
                 cpu_times: {
-                    run: run_cpu_time ?? rt.cpu_times.run,
-                    compile: compile_cpu_time ?? rt.cpu_times.compile,
+                    run: rt.cpu_times.run,
+                    compile: rt.cpu_times.compile,
                 },
                 memory_limits: {
-                    run: run_memory_limit ?? rt.memory_limits.run,
-                    compile: compile_memory_limit ?? rt.memory_limits.compile,
+                    run: rt.memory_limits.run,
+                    compile: rt.memory_limits.compile,
                 },
             })
         );
