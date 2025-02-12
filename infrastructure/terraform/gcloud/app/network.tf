@@ -60,6 +60,7 @@ resource "google_compute_firewall" "allow_ssh" {
   source_service_accounts = null
   target_tags             = null
   target_service_accounts = null
+  disabled = true
 }
 
 

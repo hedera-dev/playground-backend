@@ -88,15 +88,8 @@ Runs the given code, using the given runtime and arguments, returning the result
 -   `language`: Name or alias of a language listed in [runtimes](#runtimes)
 -   `version`: SemVer version selector of a language listed in [runtimes](#runtimes)
 -   `files`: An array of files which should be uploaded into the job context
--   `files[].name` (_optional_): Name of file to be written, if none a random name is picked
 -   `files[].content`: Content of file to be written
 -   `files[].encoding` (_optional_): The encoding scheme used for the file content. One of `base64`, `hex` or `utf8`. Defaults to `utf8`.
--   `stdin` (_optional_): Text to pass into stdin of the program. Defaults to blank string.
--   `args` (_optional_): Arguments to pass to the program. Defaults to none
--   `run_timeout` (_optional_): The maximum allowed time in milliseconds for the compile stage to finish before bailing out. Must be a number, less than or equal to the configured maximum timeout.
--   `compile_timeout` (_optional_): The maximum allowed time in milliseconds for the run stage to finish before bailing out. Must be a number, less than or equal to the configured maximum timeout. Defaults to maximum.
--   `compile_memory_limit` (_optional_): The maximum amount of memory the compile stage is allowed to use in bytes. Must be a number, less than or equal to the configured maximum. Defaults to maximum, or `-1` (no limit) if none is configured.
--   `run_memory_limit` (_optional_): The maximum amount of memory the run stage is allowed to use in bytes. Must be a number, less than or equal to the configured maximum. Defaults to maximum, or `-1` (no limit) if none is configured.
 
 #### Response
 
@@ -126,16 +119,9 @@ Content-Type: application/json
   "version": "15.10.0",
   "files": [
     {
-      "name": "my_cool_code.js",
       "content": "console.log(process.argv)"
     }
-  ],
-  "stdin": "",
-  "args": ["1", "2", "3"],
-  "compile_timeout": 10000,
-  "run_timeout": 3000,
-  "compile_memory_limit": -1,
-  "run_memory_limit": -1
+  ]
 }
 ```
 

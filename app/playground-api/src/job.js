@@ -38,7 +38,7 @@ class Job {
 
         this.runtime = runtime;
         this.files = files.map((file, i) => ({
-            name: file.name || `file${i}.code`,
+            name: `file${i}.code`,
             content: file.content,
             encoding: ['base64', 'hex', 'utf8'].includes(file.encoding)
                 ? file.encoding
