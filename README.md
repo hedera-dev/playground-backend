@@ -4,6 +4,7 @@ This project provides an environment for users to execute code related to the **
 
 - **Java**: `21.0.2` with Hedera sdk `2.46.0`
 - **JavaScript**: `20.11.1` with Hedera sdk `2.56.0`
+- **Rust**: `1.85.1` with Hedera sdk `0.32.0`
 
 The repository is structured to facilitate development, deployment, and scalability of the Playground.
 
