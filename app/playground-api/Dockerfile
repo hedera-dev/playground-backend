@@ -17,7 +17,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends tar coreutils  \
     util-linux binutils build-essential locales \
     libc6-dev libseccomp-dev rename procps python3 \
-    libcap-dev curl ca-certificates && \
+    libcap-dev libssl-dev curl ca-certificates && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
@@ -32,6 +32,7 @@ COPY install_package.sh ./
 
 RUN ./install_package.sh "java" "21.0.2" "https://storage.googleapis.com/playground_pkgs/java-21.0.2.pkg.tar.gz" "7d72e4b76d23627a19c0b875f1556771d1347ee690cce72cd65b0d45d42b3811"
 RUN ./install_package.sh "node" "20.11.1" "https://storage.googleapis.com/playground_pkgs/node-20.11.1.pkg.tar.gz" "fdfe3503527ca91183cfa7df7d965c24a7840977a4054f492670a03f702bc6d6"
+RUN ./install_package.sh "rust" "1.85.1" "https://storage.googleapis.com/playground_pkgs/rust-1.85.1.pkg.tar.gz" "fcf4645df1309952a4cf4a7fca206648d690da4cb6c32b2757070aaa2899e107"
 
 RUN apt-get remove --purge -y libkrb5-3 && \
     apt-get autoremove -y && \

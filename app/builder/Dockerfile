@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y unzip autoconf build-essential libssl-d
         libreadline-dev libblas-dev liblapack-dev libpcre3-dev libarpack2-dev libfftw3-dev \
         libglpk-dev libqhull-dev libqrupdate-dev libsuitesparse-dev libsundials-dev \
         libbz2-dev liblzma-dev libpcre2-dev gperf bison flex g++ gawk zip \
-        openjdk-11-jdk maven curl ca-certificates  && \
+        openjdk-11-jdk maven curl ca-certificates protobuf-compiler   && \
         ln -sf /bin/bash /bin/sh && \
         rm -rf /var/lib/apt/lists/* && \
         update-alternatives --install /usr/bin/python python /usr/bin/python3.7 2
