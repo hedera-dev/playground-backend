@@ -21,7 +21,7 @@ case $1 in
         BUILDER="${4:-playground-builder}"
         echo "Building $PKGSLUG"
         echo "Ensuring latest builder image"
-        docker build . -t "$BUILDER"
+        docker build --platform=linux/amd64 . -t "$BUILDER"
         docker run --rm --platform=linux/amd64 -v "$PWD:/builder" "$BUILDER" "$PKGSLUG"
 
         ;;

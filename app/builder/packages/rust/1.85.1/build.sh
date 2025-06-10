@@ -13,7 +13,7 @@ cd rust-1.85.1-x86_64-unknown-linux-gnu
 mkdir -p $HEDERA_SDK
 
 
-git clone --recursive https://github.com/hashgraph/hedera-sdk-rust.git
+git clone --branch 0.33.0 --recursive https://github.com/hashgraph/hedera-sdk-rust.git
 
 cd hedera-sdk-rust
 
