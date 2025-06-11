@@ -2,9 +2,14 @@
 
 This project provides an environment for users to execute code related to the **Hedera network**, allowing them to test functionalities using the Hedera SDK. Currently, the following languages and versions are supported:
 
-- **Java**: `21.0.2` with Hedera sdk `2.46.0`
-- **JavaScript**: `20.11.1` with Hedera sdk `2.56.0`
-- **Rust**: `1.85.1` with Hedera sdk `0.32.0`
+- **Java**: `21.0.2` with Hedera sdk `2.56.1`
+- **JavaScript**: `22.16.0` with Hedera sdk `2.64.5`
+- **Rust**: `1.85.1` with Hedera sdk `0.33.0`
+
+How build docker:
+```bash
+docker buildx build --platform linux/amd64 -t <tag>
+```
 
 The repository is structured to facilitate development, deployment, and scalability of the Playground.
 
