@@ -1,4 +1,4 @@
-FROM buildpack-deps:bookworm AS isolate
+FROM buildpack-deps:bookworm@sha256:4c37ab5f6f0d007c4d897ee58ae3abd40dbdf6ad8d18d9b347cf32e072b57607 AS isolate
 RUN apt-get update && \
     apt-get install -y --no-install-recommends git libcap-dev && \
     rm -rf /var/lib/apt/lists/* && \
@@ -8,7 +8,7 @@ RUN apt-get update && \
     make -j$(nproc) install && \
     rm -rf /tmp/*
 
-FROM node:22.16.0-bookworm-slim
+FROM node:22.16.0-bookworm-slim@sha256:1471ea646673136b8308550ac14b36d847ffb21c24bc31828279e443c924e488
 
 ENV DEBIAN_FRONTEND=noninteractive
 

@@ -1,6 +1,6 @@
 services:
   playground-api:
-    image: {{ region }}-docker.pkg.dev/{{ project_id }}/playground/playground-api:latest
+    image: {{ region }}-docker.pkg.dev/{{ project_id }}/playground/playground-api:latest@sha256:54882fbe465f7814ee7d402eb35e8120e8a15ee880ebaa1ec60add2f47404904
     container_name: playground-api
     restart: always
     privileged: true
@@ -8,7 +8,7 @@ services:
       - "80:2000"
     environment:
       COMPILE_CPU_TIME: 10000 # 10 seconds
-      COMPILE_MEMORY_LIMIT: 300000000 # 300 MB
+      COMPILE_MEMORY_LIMIT: 500000000 # 500 MB
       COMPILE_TIMEOUT: 20000 # 20 seconds
       DISABLE_NETWORKING: "false"
       LOG_LEVEL: INFO

@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v2.11.25@sha256:7a3e93790acb9cc76a1671d60edac91f2b44a660c542a129f7b60ec2051f5935
     container_name: traefik
     command:
       - --entrypoints.web.address=:80

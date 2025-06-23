@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM debian:bookworm-slim@sha256:f957d7d19c4171aded89330899c1501c03707d879f200001aa47af87d98b3c70
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y unzip autoconf build-essential libssl-dev \
