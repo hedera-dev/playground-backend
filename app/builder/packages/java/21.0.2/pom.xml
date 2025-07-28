@@ -12,8 +12,8 @@
 
     <name>Hedera Java App</name>
     <description>A simple Java application using Hedera SDK</description>
-
     <url>https://github.com/hashgraph/hedera-sdk-java</url>
+    <!-- docs/java-app/java-app-quickstart.md -->
 
     <!-- Dependencies -->
     <dependencies>
@@ -21,7 +21,7 @@
         <dependency>
             <groupId>com.hedera.hashgraph</groupId>
             <artifactId>sdk</artifactId>
-            <version>2.46.0</version>
+            <version>2.56.1</version>
         </dependency>
 
          <!-- netty transport (for server or desktop applications) -->
@@ -69,12 +69,13 @@
         <plugins>
             <!-- Compiler plugin -->
             <plugin>
+                <!-- https://mvnrepository.com/artifact/org.apache.maven.plugins/maven-compiler-plugin -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.14.0</version>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <source>21</source>
+                    <target>21</target>
                 </configuration>
             </plugin>
         </plugins>

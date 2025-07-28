@@ -20,10 +20,16 @@ build build-all: $(addsuffix .pkg.tar.gz, ${PACKAGES})
 
 define PKG_RULE
 $(1).pkg.tar.gz: $(subst -,/,$(1)) $(subst -,/,$(1))/pkg-info.json
-	cd $$< && chmod +x ./build.sh && ./build.sh
-	rm -f $$@
+	@echo "==> Executing build.sh for $(1)..."
+	@chmod +x $$</build.sh
+	@bash -c "cd $$< && ./build.sh"
+	@echo "==> build.sh executed correctly."
 
-	tar czf $$@ -C $$< .
+	@rm -f $$@
+
+	@echo "==> Packaging $(1)..."
+	@tar czf $$@ -C $$< .
+	@echo "==> Package $(1).pkg.tar.gz created correctly."
 endef
 
 $(foreach pkg,$(PACKAGES),$(eval $(call PKG_RULE,$(pkg))))
