@@ -38,6 +38,7 @@ http:
       headers:
         accessControlAllowOriginList: 
           - "https://portal.hedera.com"
+          - "https://prod-portal.hedera.com"
         accessControlAllowMethods:
           - GET
           - POST
