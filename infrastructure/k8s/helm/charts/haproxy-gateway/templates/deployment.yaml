@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/etc/haproxy
+              readOnly: true
+            - name: haproxy-errorfiles
+              mountPath: /usr/local/etc/haproxy/errors
+            - name: ssl-cert
+              mountPath: /etc/ssl/certs 
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Release.Name }}-config
+            items:
+              - key: haproxy.cfg
+                path: haproxy.cfg
+        - name: haproxy-errorfiles
+          configMap:
+            name: "{{ .Release.Name }}-api-gateway-cm"
+            items:
+              - key: 400.json
+                path: 400.json
+              - key: 403.json
+                path: 403.json
+              - key: 408.json
+                path: 408.json
+              - key: 500.json
+                path: 500.json
+              - key: 502.json
+                path: 502.json
+              - key: 503.json
+                path: 503.json
+              - key: 504.json
+                path: 504.json
+        - name: ssl-cert-secret
+          secret:
+            secretName: "{{ .Release.Name }}-api-gateway-secret"
+            items:
+              - key: cert.pem
+                path: cert.pem
+        - name: ssl-cert
+          emptyDir: {} 
+
+

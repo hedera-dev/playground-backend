@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  400.json: | 
+    HTTP/1.1 400 Bad Request
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Bad Request",
+        "reason": "The server could not understand the request due to invalid syntax."
+    }
+  403.json: |
+    HTTP/1.1 403 Forbidden
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+
+    {
+        "message": "Forbidden Access",
+        "reason": "Request forbidden by administrative rules."
+    }
+  408.json: |
+    HTTP/1.1 408 Request Timeout
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Request Timeout",
+        "reason": "The server timed out waiting for the request."
+    }
+  500.json: |
+    HTTP/1.1 500 Internal Server Error
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Internal Server Error",
+        "reason": "The server encountered an unexpected condition that prevented it from fulfilling the request."
+    }
+  502.json: |
+    HTTP/1.1 502 Bad Gateway
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Bad Gateway",
+        "reason": "The server, while acting as a gateway or proxy, received an invalid response from the upstream server."
+    }
+  503.json: |
+    HTTP/1.1 503 Service Unavailable
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Service Unavailable",
+        "reason": "The server is currently unable to handle the request due to temporary overloading or maintenance of the server."
+    }
+  504.json: |
+    HTTP/1.1 504 Gateway Timeout
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Gateway Timeout",
+        "reason": "The server, while acting as a gateway or proxy, did not receive a timely response from the upstream server."
+    }
+  haproxy.cfg: |
+    global
+        log stdout format raw local0
+        log /dev/log local0
+        user haproxy
+        group haproxy
+
+    defaults
+        log global
+        mode http
+        option httplog
+        timeout connect 10s
+        timeout client 120s
+        timeout server 120s
+
+        errorfile 400 /usr/local/etc/haproxy/errors/400.json
+        errorfile 403 /usr/local/etc/haproxy/errors/403.json
+        errorfile 408 /usr/local/etc/haproxy/errors/408.json
+        errorfile 500 /usr/local/etc/haproxy/errors/500.json
+        errorfile 502 /usr/local/etc/haproxy/errors/502.json
+        errorfile 503 /usr/local/etc/haproxy/errors/503.json
+        errorfile 504 /usr/local/etc/haproxy/errors/504.json
+
+    frontend http
+        mode http
+        bind :{{ .Values.service.port }}
+
+        # Accept WebSocket upgrades
+        acl hdr_connection_upgrade hdr_cnt(connection) gt 0
+        acl is_websocket hdr(Upgrade) -i WebSocket
+        acl is_websocket2 hdr(Upgrade) -i websocket
+
+        # use_backend ws_backend if hdr_connection_upgrade or is_websocket or is_websocket2
+        default_backend assistant
+
+    backend assistant
+        option httpchk GET {{ .Values.backend.healthPath }}
+        http-check expect status 200
+        server target {{ .Values.backend.serviceName }}:{{ .Values.backend.servicePort }} check
+
+
