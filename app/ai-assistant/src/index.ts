@@ -1,9 +1,9 @@
 import Fastify, { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { config } from "dotenv";
-import WebSocketHandlerImpl from "./application/controllers/impl/WebSocketHandlerImpl.js";
-import HealthControllerImpl from "./application/controllers/impl/HealthControllerImpl.js";
+import { ChatControllerImpl } from "./application/controllers/impl/ChatControllerImpl.js";
 import pino from "pino";
 import PinoPretty from "pino-pretty";
+import HealthControllerImpl from "./application/controllers/impl/HealthControllerImpl.js";
 
 // Load environment variables
 config();
@@ -52,18 +52,24 @@ fastify.setNotFoundHandler((request, reply) => {
 async function start() {
 	try {
 		const healthController = new HealthControllerImpl(fastify);
-		const wsHandler = new WebSocketHandlerImpl(fastify);
+		const chatController = new ChatControllerImpl(fastify);
 
 		await healthController.registerRoutes();
-		await wsHandler.registerRoutes();
+		await chatController.registerRoutes();
 
+		// Stats endpoint
 		fastify.get("/api/stats", async (request, reply) => {
 			return {
-				connectedClients: wsHandler.getConnectedClientsCount(),
+				activeSessions: chatController.getActiveSessionsCount(),
 				timestamp: new Date().toISOString(),
 				status: "running",
 			};
 		});
+
+		// Cleanup old sessions every hour
+		setInterval(() => {
+			chatController.cleanupOldSessions(24); // 24 hours
+		}, 60 * 60 * 1000);
 
 		await fastify.listen({ port: PORT, host: HOST });
 
@@ -71,7 +77,10 @@ async function start() {
 			`🚀 Hedera Playground Backend running on http://${HOST}:${PORT}`
 		);
 		console.log(
-			`📡 WebSocket endpoint (Socket.IO path): ws://${HOST}:${PORT}/ws/chats`
+			`💬 Chat streaming endpoint: POST http://${HOST}:${PORT}/api/playground/assistant/chat/stream`
+		);
+		console.log(
+			`📜 History endpoint: GET http://${HOST}:${PORT}/api/playground/assistant/chat/history/:conversationId`
 		);
 		console.log(
 			`🔍 Health check: http://${HOST}:${PORT}/api/playground/assistant/health`

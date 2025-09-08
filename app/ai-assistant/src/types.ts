@@ -1,18 +1,32 @@
 import { z } from "zod";
 
-// WebSocket message types
-export const MessageSchema = z.object({
-  type: z.enum(["chat", "ping"]),
-  content: z.string(),
-  conversationId: z.string().optional(),
-  messageId: z.string().optional(),
+// HTTP Chat request types
+export const ChatRequestSchema = z.object({
+  message: z.string().min(1, "Message cannot be empty"),
+  conversationId: z.string().optional().nullable(),
+  messageId: z.string().optional().nullable(),
 });
 
-export type Message = z.infer<typeof MessageSchema>;
+export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
-// WebSocket response types
-export interface ChatResponse {
-  type: "chat_start" | "chat_delta" | "chat_complete" | "error" | "pong";
+// Conversation history type
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp?: string;
+}
+
+// Chat session interface
+export interface ChatSession {
+  id: string;
+  conversationHistory: ConversationMessage[];
+  createdAt: Date;
+  lastActivity: Date;
+}
+
+// Streaming response events (for SSE)
+export interface StreamingEvent {
+  type: "start" | "delta" | "complete" | "error";
   content?: string;
   messageId?: string;
   conversationId?: string;
@@ -26,21 +40,4 @@ export interface ChatResponse {
       totalTokens: number;
     };
   };
-}
-
-// OpenAI streaming events
-export interface StreamEvent {
-  type: "delta" | "complete" | "error";
-  data: any;
-}
-
-// Client connection interface
-export interface ClientConnection {
-  id: string;
-  socket: any; // WebSocket instance
-  isAlive: boolean;
-  conversationHistory: Array<{
-    role: "user" | "assistant";
-    content: string;
-  }>;
 }
