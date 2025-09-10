@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-config
+  name: {{ .Release.Name }}-api-gateway-cm
   labels:
     app.kubernetes.io/name: {{ .Chart.Name }}
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -135,6 +135,6 @@ data:
     backend assistant
         option httpchk GET {{ .Values.backend.healthPath }}
         http-check expect status 200
-        server target {{ .Values.backend.serviceName }}:{{ .Values.backend.servicePort }} check
+        server {{ .Values.backend.serviceName }} {{ .Values.backend.serviceName }}:{{ .Values.backend.servicePort }} check
 
 

@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: "{{ .Release.Name }}-api-gateway"
   labels:
     app.kubernetes.io/name: {{ .Chart.Name }}
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -26,14 +26,15 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            - name: config
-              mountPath: /usr/local/etc/haproxy
-              readOnly: true
             - name: haproxy-errorfiles
               mountPath: /usr/local/etc/haproxy/errors
-            - name: ssl-cert
-              mountPath: /etc/ssl/certs 
+            - name: haproxy-config
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+              readOnly: true
           readinessProbe:
             tcpSocket:
               port: http
@@ -45,9 +46,9 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 20
       volumes:
-        - name: config
+        - name: haproxy-config
           configMap:
-            name: {{ .Release.Name }}-config
+            name: "{{ .Release.Name }}-api-gateway-cm"
             items:
               - key: haproxy.cfg
                 path: haproxy.cfg
@@ -69,13 +70,5 @@ spec:
                 path: 503.json
               - key: 504.json
                 path: 504.json
-        - name: ssl-cert-secret
-          secret:
-            secretName: "{{ .Release.Name }}-api-gateway-secret"
-            items:
-              - key: cert.pem
-                path: cert.pem
-        - name: ssl-cert
-          emptyDir: {} 
 
 

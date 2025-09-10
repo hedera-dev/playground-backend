@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  repository: haproxy
+  tag: "2.9"
+  pullPolicy: Always
+
+service:
+  type: NodePort
+  port: 80
+  globalIpName: ip-lb-assistant
+  domain: dev-playground-assistant.kabila.app
+
+backend:
+  serviceName: devai-ai-assistant-svc
+  servicePort: 3001
+  healthPath: /api/playground/assistant/health
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

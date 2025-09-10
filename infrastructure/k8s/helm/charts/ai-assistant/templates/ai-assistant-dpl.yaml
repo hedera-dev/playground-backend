@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: "{{ .Release.Name }}-ai-assistant-dpl"
   labels:
     app.kubernetes.io/name: {{ .Chart.Name }}
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -56,10 +56,10 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            - name: config
+            - name: ai-assistant-config
               mountPath: /config
               readOnly: true
       volumes:
-        - name: config
+        - name: ai-assistant-config
           configMap:
-            name: {{ .Release.Name }}-config
+            name: "{{ .Release.Name }}-ai-assistant-cm"

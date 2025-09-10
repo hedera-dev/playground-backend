@@ -1,0 +1,14 @@
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: "{{ .Release.Name }}-api-gateway-bc"
+  namespace: default
+spec:
+  healthCheck:
+    type: HTTP
+    requestPath: /api/playground/assistant/health
+    port: 80
+    checkIntervalSec: 5
+    timeoutSec: 5
+    healthyThreshold: 2
+    unhealthyThreshold: 2
