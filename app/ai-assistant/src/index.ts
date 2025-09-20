@@ -86,6 +86,7 @@ async function start() {
 			`🔍 Health check: http://${HOST}:${PORT}/api/playground/assistant/health`
 		);
 		console.log(`📊 Stats: http://${HOST}:${PORT}/api/stats`);
+		if (process.env.ENABLE_MOCK_MODE === 'true') console.log('🔍 Mock mode');
 	} catch (error) {
 		fastify.log.error(error);
 		process.exit(1);

@@ -1,0 +1,809 @@
+[
+  {
+    "type": "start"
+  },
+  {
+    "type": "start-step"
+  },
+  {
+    "type": "text-start",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "providerMetadata": {
+      "openai": {
+        "itemId": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d"
+      }
+    }
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "1"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "."
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " Add"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " the"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " receiver"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "'s"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " account"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " ID"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " where"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " indicated"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " by"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " the"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " comment"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": ".\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "2"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "."
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " Ensure"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " the"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " private"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " key"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " uses"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " `"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "from"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "String"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "`"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " instead"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " of"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " `"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "from"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "String"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "ED"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "255"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "19"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "`"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " for"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " consistency"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " unless"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " specific"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " use"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " cases"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " require"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " the"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " latter"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": ".\n\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "Here's"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " what"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " you"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " need"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " to"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " fix"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": ":\n\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "```"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "javascript"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "//"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " Fill"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " in"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " the"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " receiver"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "'s"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " account"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " ID"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "const"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " receiver"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "Account"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " ="
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " Account"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "Id"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": ".from"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "String"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "(\""
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "0"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "."
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "0"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": ".x"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "xxxxx"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "\");\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "``"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "`\n\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "I"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " will"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " make"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " the"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " necessary"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " edit"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " for"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " the"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " private"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": " key"
+  },
+  {
+    "type": "text-delta",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d",
+    "delta": "."
+  },
+  {
+    "type": "text-end",
+    "id": "msg_68cd680e60cc819087ccb81fb6123c6100901cf06e1c899d"
+  },
+  {
+    "type": "tool-input-start",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "toolName": "proposeEdit",
+    "dynamic": false
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "{\""
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "mode"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\":\""
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "replace"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\",\""
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "code"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\":\""
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "Private"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "Key"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": ".from"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "String"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "(\\\""
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "5"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "ab"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "5"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "eff"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "e"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "650"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "973"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "4"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "aed"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "323"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "2"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "e"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "4"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "cb"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "160"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "9"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "f"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "399"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "e"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "580"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "fb"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "120"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "87"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "df"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "8"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "b"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "211"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "f"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "016"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "2"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "ee"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "6"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "fa"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "19"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\\"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\");"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\",\""
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "start"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "Line"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\":"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "12"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": ",\""
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "end"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "Line"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "\":"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "12"
+  },
+  {
+    "type": "tool-input-delta",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "inputTextDelta": "}"
+  },
+  {
+    "type": "tool-input-available",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "toolName": "proposeEdit",
+    "input": {
+      "mode": "replace",
+      "code": "PrivateKey.fromString(\"5ab5effe6509734aed3232e4cb1609f399e580fb12087df8b211f0162ee6fa19\");",
+      "startLine": 12,
+      "endLine": 12
+    },
+    "providerMetadata": {
+      "openai": {
+        "itemId": "fc_68cd681379ac819093a056a11a48dd6d00901cf06e1c899d"
+      }
+    }
+  },
+  {
+    "type": "tool-output-available",
+    "toolCallId": "call_iXNU4jdBKEdnOGOjC3ohLom8",
+    "output": {
+      "mode": "replace",
+      "code": "PrivateKey.fromString(\"5ab5effe6509734aed3232e4cb1609f399e580fb12087df8b211f0162ee6fa19\");",
+      "startLine": 12,
+      "endLine": 12
+    }
+  },
+  {
+    "type": "finish-step"
+  },
+  {
+    "type": "finish"
+  }
+]
