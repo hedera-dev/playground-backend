@@ -4,13 +4,13 @@ Backend API de WebSocket construido con TypeScript, Fastify y OpenAI para el asi
 
 ## 🚀 Características
 
-- **Fastify**: Framework web rápido y eficiente
-- **WebSocket**: Comunicación en tiempo real con `@fastify/websocket`
-- **OpenAI Integration**: Streaming de respuestas con GPT-4
-- **TypeScript**: Tipado estático completo
-- **Validación**: Esquemas Zod para mensajes WebSocket
-- **Health Checks**: Endpoints de monitoreo
-- **Auto-reconexión**: Manejo robusto de conexiones
+-   **Fastify**: Framework web rápido y eficiente
+-   **WebSocket**: Comunicación en tiempo real con `@fastify/websocket`
+-   **OpenAI Integration**: Streaming de respuestas con GPT-4
+-   **TypeScript**: Tipado estático completo
+-   **Validación**: Esquemas Zod para mensajes WebSocket
+-   **Health Checks**: Endpoints de monitoreo
+-   **Auto-reconexión**: Manejo robusto de conexiones
 
 ## 📋 Instalación
 
@@ -94,10 +94,10 @@ Estado del servidor
 
 ```json
 {
-  "status": "healthy",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "uptime": 123.45,
-  "environment": "development"
+	"status": "healthy",
+	"timestamp": "2024-01-01T00:00:00.000Z",
+	"uptime": 123.45,
+	"environment": "development"
 }
 ```
 
@@ -107,14 +107,14 @@ Información de la API
 
 ```json
 {
-  "name": "Hedera Playground Backend",
-  "version": "1.0.0",
-  "description": "WebSocket API for Hedera Playground Assistant",
-  "endpoints": {
-    "websocket": "/ws/chat",
-    "health": "/health",
-    "stats": "/api/stats"
-  }
+	"name": "Hedera Playground Backend",
+	"version": "1.0.0",
+	"description": "WebSocket API for Hedera Playground Assistant",
+	"endpoints": {
+		"websocket": "/ws/chat",
+		"health": "/health",
+		"stats": "/api/stats"
+	}
 }
 ```
 
@@ -124,14 +124,14 @@ Estadísticas de conexiones
 
 ```json
 {
-  "activeConnections": 2,
-  "connections": [
-    {
-      "id": "uuid-1",
-      "isAlive": true,
-      "messageCount": 5
-    }
-  ]
+	"activeConnections": 2,
+	"connections": [
+		{
+			"id": "uuid-1",
+			"isAlive": true,
+			"messageCount": 5
+		}
+	]
 }
 ```
 
@@ -149,23 +149,23 @@ src/
 
 #### `WebSocketHandler`
 
-- Maneja conexiones WebSocket
-- Enrutamiento de mensajes
-- Health checks (ping/pong)
-- Gestión de estado de conexiones
+-   Maneja conexiones WebSocket
+-   Enrutamiento de mensajes
+-   Health checks (ping/pong)
+-   Gestión de estado de conexiones
 
 #### `OpenAIService`
 
-- Integración con OpenAI API
-- Streaming de respuestas
-- Manejo de historial de conversaciones
-- Especialización en Hedera/Web3
+-   Integración con OpenAI API
+-   Streaming de respuestas
+-   Manejo de historial de conversaciones
+-   Especialización en Hedera/Web3
 
 #### `Types`
 
-- Esquemas de validación Zod
-- Interfaces TypeScript
-- Tipos para mensajes y respuestas
+-   Esquemas de validación Zod
+-   Interfaces TypeScript
+-   Tipos para mensajes y respuestas
 
 ## 🔧 Configuración Avanzada
 
@@ -173,12 +173,12 @@ src/
 
 ```typescript
 await fastify.register(cors, {
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:5173",
-    /^http:\/\/localhost:\d+$/,
-  ],
-  credentials: true,
+	origin: [
+		"http://localhost:3000",
+		"http://localhost:5173",
+		/^http:\/\/localhost:\d+$/,
+	],
+	credentials: true,
 });
 ```
 
@@ -186,10 +186,10 @@ await fastify.register(cors, {
 
 ```typescript
 await fastify.register(websocket, {
-  options: {
-    maxPayload: 1048576, // 1MB
-    verifyClient: (info) => true, // Personalizar autenticación
-  },
+	options: {
+		maxPayload: 1048576, // 1MB
+		verifyClient: (info) => true, // Personalizar autenticación
+	},
 });
 ```
 
@@ -219,24 +219,24 @@ NODE_ENV=production npm start
 
 ## 🚦 Manejo de Errores
 
-- Validación de esquemas con Zod
-- Error handlers globales de Fastify
-- Timeout handling para conexiones WebSocket
-- Reconexión automática del cliente
+-   Validación de esquemas con Zod
+-   Error handlers globales de Fastify
+-   Timeout handling para conexiones WebSocket
+-   Reconexión automática del cliente
 
 ## 📊 Monitoreo
 
-- Health check endpoint
-- Estadísticas de conexiones activas
-- Métricas de uso de tokens OpenAI
-- Estado de conexiones WebSocket
+-   Health check endpoint
+-   Estadísticas de conexiones activas
+-   Métricas de uso de tokens OpenAI
+-   Estado de conexiones WebSocket
 
 ## 🔒 Seguridad
 
-- Validación de entrada con Zod
-- CORS configurado apropiadamente
-- Rate limiting (por implementar)
-- Autenticación (por implementar)
+-   Validación de entrada con Zod
+-   CORS configurado apropiadamente
+-   Rate limiting (por implementar)
+-   Autenticación (por implementar)
 
 ## 🚀 Despliegue
 
@@ -271,35 +271,35 @@ To deploy the application using Helm, follow these steps:
 
 1. **Create a Helm Chart**:
 
-   - Run `helm create hedera-playground-assistant` to generate a new Helm chart.
-   - Replace the contents of `hedera-playground-assistant/templates/` with the Kubernetes manifests created earlier.
+    - Run `helm create hedera-playground-assistant` to generate a new Helm chart.
+    - Replace the contents of `hedera-playground-assistant/templates/` with the Kubernetes manifests created earlier.
 
 2. **Update `values.yaml`**:
 
-   - Set the Docker image and other configurations as needed.
+    - Set the Docker image and other configurations as needed.
 
 3. **Deploy the Helm Chart**:
 
-   - Run `helm install hedera-playground-assistant ./hedera-playground-assistant` to deploy the application.
+    - Run `helm install hedera-playground-assistant ./hedera-playground-assistant` to deploy the application.
 
 4. **Verify Deployment**:
-   - Use `kubectl get pods` and `kubectl get services` to ensure the application is running correctly.
+    - Use `kubectl get pods` and `kubectl get services` to ensure the application is running correctly.
 
 ## GCP deployment with Terraform
 
 ### Prerequisites
 
-- Google Cloud project with billing enabled
-- `gcloud` CLI authenticated and configured for your project
-- `terraform` >= 1.5 installed
+-   Google Cloud project with billing enabled
+-   `gcloud` CLI authenticated and configured for your project
+-   `terraform` >= 1.5 installed
 
 ### What Terraform creates
 
-- Artifact Registry repo for Docker images
-- Secret Manager secret `OPENAI_API_KEY`
-- Cloud Run (fully managed) service for the backend
-- Service Account for Cloud Run with permissions to pull images and read the secret
-- Public invoker on the Cloud Run service
+-   Artifact Registry repo for Docker images
+-   Secret Manager secret `OPENAI_API_KEY`
+-   Cloud Run (fully managed) service for the backend
+-   Service Account for Cloud Run with permissions to pull images and read the secret
+-   Public invoker on the Cloud Run service
 
 ### 1) Build and push the Docker image
 
@@ -356,8 +356,8 @@ curl "$(terraform output -raw cloud_run_url)/api/playground/assistant/health"
 
 Notes:
 
-- The service listens on port `3001` and exposes `/api/playground/assistant/health`.
-- `OPENAI_API_KEY` is injected from Secret Manager at runtime. Ensure the secret has a latest version.
+-   The service listens on port `3001` and exposes `/api/playground/assistant/health`.
+-   `OPENAI_API_KEY` is injected from Secret Manager at runtime. Ensure the secret has a latest version.
 
 ## GKE deployment (Kubernetes) with Terraform
 
@@ -365,9 +365,9 @@ If you prefer Kubernetes over Cloud Run, use the provided Terraform to create a 
 
 ### Prerequisites
 
-- Google Cloud project with billing enabled
-- `gcloud` and `terraform` installed
-- Docker image pushed to Artifact Registry (see step 1 below)
+-   Google Cloud project with billing enabled
+-   `gcloud` and `terraform` installed
+-   Docker image pushed to Artifact Registry (see step 1 below)
 
 ### 1) Build and push the Docker image
 
@@ -425,15 +425,90 @@ curl "http://${EXTERNAL_IP}/api/playground/assistant/health"
 
 Notes:
 
-- The Service name is `hedera-playground-assistant` and forwards port 80 -> container `3001`.
-- The Deployment label selector uses `app: playground-backend` by default; keep labels in sync if you change `service_name`.
+-   The Service name is `hedera-playground-assistant` and forwards port 80 -> container `3001`.
+-   The Deployment label selector uses `app: playground-backend` by default; keep labels in sync if you change `service_name`.
+
+## 📊 Sistema de Logging con Pino
+
+### Configuración Centralizada
+
+El sistema utiliza **Pino** con **pino-pretty** para logging estructurado y legible:
+
+```typescript
+import { logger, createAgentLogger } from "./utils/logger.js";
+
+// Logger principal para toda la aplicación
+logger.info({ key: "value" }, "Message");
+
+// Logger específico para agentes con trazabilidad de sesión
+const agentLogger = createAgentLogger();
+agentLogger.logAgent1Start("User input...");
+```
+
+### Variables de Entorno de Logging
+
+```bash
+# Nivel de logging (debug, info, warn, error, fatal)
+LOG_LEVEL=debug
+
+# Entorno (afecta formato de salida)
+NODE_ENV=development  # pino-pretty con colores
+NODE_ENV=production   # JSON estructurado
+```
+
+### Scripts de Desarrollo
+
+```bash
+# Desarrollo normal
+npm run dev
+
+# Modo debug (muestra flujo completo Agent 1 → Agent 2)
+npm run dev:debug
+```
+
+### Logs de Debug para Agentes
+
+En modo debug (`LOG_LEVEL=debug`), verás el flujo completo:
+
+-   **Input del usuario** al Agent 1
+-   **Salida completa** del Agent 1 → Agent 2
+-   **Prompt generado** para el Agent 2
+-   **Respuesta final** del Agent 2
+-   **Consumo de tokens** por agente
+
+### Formato de Salida
+
+**Desarrollo** (pino-pretty):
+
+```
+[2025-01-XX 10:15:23.456] INFO: 🚀 Two-agent mode enabled
+    agent: "SESSION"
+    sessionId: "a1b2c3"
+    elapsed: 0
+
+[2025-01-XX 10:15:24.123] DEBUG: Full proposed changes (Agent 1 → Agent 2 input)
+    agent: "AGENT-1"
+    fullProposedChanges: {...}
+```
+
+**Producción** (JSON):
+
+```json
+{
+	"level": 30,
+	"time": 1640000000000,
+	"agent": "AGENT-1",
+	"sessionId": "a1b2c3",
+	"msg": "Changes proposed"
+}
+```
 
 ## 📝 Próximas Mejoras
 
-- [ ] Autenticación JWT
-- [ ] Rate limiting
-- [ ] Métricas Prometheus
-- [ ] Tests unitarios
-- [ ] Docker containerization
-- [ ] Base de datos para persistencia
-- [ ] Clustering para múltiples instancias
+-   [ ] Autenticación JWT
+-   [ ] Rate limiting
+-   [ ] Métricas Prometheus
+-   [ ] Tests unitarios
+-   [ ] Docker containerization
+-   [ ] Base de datos para persistencia
+-   [ ] Clustering para múltiples instancias
