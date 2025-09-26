@@ -35,16 +35,24 @@ spec:
               mountPath: /usr/local/etc/haproxy/haproxy.cfg
               subPath: haproxy.cfg
               readOnly: true
+            - name: spoe-config
+              mountPath: /usr/local/etc/haproxy/spoe-auth.conf
+              subPath: spoe-auth.conf
+              readOnly: true
+          {{- if .Values.healthCheck.readinessProbe.enabled }}
           readinessProbe:
             tcpSocket:
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+          {{- end }}
+          {{- if .Values.healthCheck.livenessProbe.enabled }}
           livenessProbe:
             tcpSocket:
               port: http
             initialDelaySeconds: 10
             periodSeconds: 20
+          {{- end }}
       volumes:
         - name: haproxy-config
           configMap:
@@ -62,6 +70,8 @@ spec:
                 path: 403.json
               - key: 408.json
                 path: 408.json
+              - key: 429.json
+                path: 429.json
               - key: 500.json
                 path: 500.json
               - key: 502.json
@@ -70,5 +80,11 @@ spec:
                 path: 503.json
               - key: 504.json
                 path: 504.json
+        - name: spoe-config
+          configMap:
+            name: "{{ .Release.Name }}-api-gateway-cm"
+            items:
+              - key: spoe-auth.conf
+                path: spoe-auth.conf
 
 

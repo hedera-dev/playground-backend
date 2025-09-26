@@ -16,6 +16,11 @@ backend:
   servicePort: 3001
   healthPath: /api/playground/assistant/health
 
+# SPOE Authentication configuration
+spoe:
+  serviceName: devsa-spoe-auth-svc
+  servicePort: 9000
+
 resources:
   requests:
     cpu: 100m
@@ -23,3 +28,10 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+# Health checks configuration
+healthCheck:
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: true

@@ -8,7 +8,7 @@ spec:
     type: HTTP
     requestPath: /api/playground/assistant/health
     port: 80
-    checkIntervalSec: 5
+    checkIntervalSec: 15
     timeoutSec: 5
     healthyThreshold: 2
     unhealthyThreshold: 2

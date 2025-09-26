@@ -1,0 +1,6 @@
+apiVersion: v2
+name: spoe-auth
+description: SPOE Authentication Service for HAProxy
+type: application
+version: 0.1.0
+appVersion: "1.0"

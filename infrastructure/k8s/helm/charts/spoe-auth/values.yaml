@@ -1,0 +1,50 @@
+replicaCount: 1
+
+image:
+  repository: us-central1-docker.pkg.dev/playground-develop-441415/playground/spoe-auth
+  tag: "0.1.0@sha256:05e35b7408e3efad6db26d1725542635b21443728356b8bdde9cfa3851c9729a"
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 9000
+  targetPort: 9000
+
+# Environment variables for SPOE authentication
+env:
+  # PASETO configuration
+  pasetoV4PublicKeyHex: "ca7fd8408500327b40d4da02dbc34881b2a379ccd3913a9d06e810a8fdb66329"  # Required: Ed25519 public key in HEX format
+  ignoreExp: "true"         # Optional: ignore token expiration
+  requireAud: ""            # Optional: expected audience
+  requireIss: ""            # Optional: expected issuer
+  userField: "userId"       # Optional: claim to extract user id (default: userId, fallback to sub)
+  
+  # Admin bypass
+  adminApiKey: ""           # Optional: bypass when X-API-Key matches
+  
+  # SPOE configuration
+  authArg: "auth"           # Optional: SPOE arg name with token (default: auth)
+  apiKeyArg: "api_key"      # Optional: SPOE arg name with api key (default: api_key)
+  messageName: "verify"     # Optional: SPOE message name (default: verify)
+  
+  # Service configuration
+  mode: "spoe"              # Mode: spoe or http
+  listenAddr: ":9000"       # Listen address for SPOE mode
+
+  debug: "true"              # Debug mode: true or false
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# Health check configuration
+healthCheck:
+  enabled: false
+  path: /health
+  port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 30

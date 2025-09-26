@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spoe-auth.fullname" . }}
+  labels:
+    {{- include "spoe-auth.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "spoe-auth.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "spoe-auth.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: spoe
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: PASETO_V4_PUBLIC_KEY_HEX
+              value: {{ .Values.env.pasetoV4PublicKeyHex | quote }}
+            - name: IGNORE_EXP
+              value: {{ .Values.env.ignoreExp | quote }}
+            - name: REQUIRE_AUD
+              value: {{ .Values.env.requireAud | quote }}
+            - name: REQUIRE_ISS
+              value: {{ .Values.env.requireIss | quote }}
+            - name: USER_FIELD
+              value: {{ .Values.env.userField | quote }}
+            - name: ADMIN_API_KEY
+              value: {{ .Values.env.adminApiKey | quote }}
+            - name: AUTH_ARG
+              value: {{ .Values.env.authArg | quote }}
+            - name: API_KEY_ARG
+              value: {{ .Values.env.apiKeyArg | quote }}
+            - name: MESSAGE_NAME
+              value: {{ .Values.env.messageName | quote }}
+            - name: MODE
+              value: {{ .Values.env.mode | quote }}
+            - name: LISTEN_ADDR
+              value: {{ .Values.env.listenAddr | quote }}
+            - name: DEBUG
+              value: {{ .Values.env.debug | quote }}
+          {{- if .Values.healthCheck.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path }}
+              port: {{ .Values.healthCheck.port }}
+            initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path }}
+              port: {{ .Values.healthCheck.port }}
+            initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthCheck.periodSeconds }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
