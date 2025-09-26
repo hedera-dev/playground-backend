@@ -41,3 +41,17 @@ export interface StreamingEvent {
     };
   };
 }
+
+export enum UserMetadataType {
+  CODE_REVIEW = "code-review",
+  EXECUTION_ANALYSIS = "execution-analysis",
+  GENERAL_ASSISTANT = "general-assistant",
+}
+
+export interface UserMetadata {
+  type: UserMetadataType;
+  language: string;
+  currentLine: number;
+  code: string;
+  output: string;
+}
