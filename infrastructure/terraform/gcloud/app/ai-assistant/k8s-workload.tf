@@ -4,7 +4,7 @@ resource "google_container_cluster" "k8s_cluster_playground" {
   workload_identity_config {
     workload_pool = "${local.deployment["project-id"]}.svc.id.goog"
   }
-  location                 = local.deployment["region"]
+  location                 = local.deployment["zone"]
   name                     = local.deployment["cluster-name"]
   network                  = google_compute_network.vpc_ai_assistant.self_link
   remove_default_node_pool = true

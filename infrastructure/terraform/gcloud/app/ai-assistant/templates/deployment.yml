@@ -11,7 +11,7 @@ services-secondary-cidr: "10.30.0.0/20"
 lb-static-ip-name: "ai-assistant"
 cluster-name: "k8s-hedera-playground"
 node-pool-name: "pool-playground"
-node-count: 1
+node-count: 2
 node-machine-type: "e2-medium"
 node-disk-size-gb: 20
 node-disk-type: "pd-balanced"

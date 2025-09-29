@@ -41,6 +41,7 @@ spec:
               value: {{ .Values.env.MODEL_OPENAI | quote }}
             - name: VECTOR_STORE_ID
               value: {{ .Values.env.VECTOR_STORE_ID | quote }}
+          {{- if .Values.probes.enable }}
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.path | quote }}
@@ -53,6 +54,7 @@ spec:
               port: http
             initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
