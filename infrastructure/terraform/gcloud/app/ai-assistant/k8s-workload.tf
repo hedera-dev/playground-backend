@@ -26,6 +26,18 @@ resource "google_container_node_pool" "node_pool_playground" {
     machine_type = local.deployment["node-machine-type"]
     disk_size_gb = local.deployment["node-disk-size-gb"]
     disk_type = local.deployment["node-disk-type"]
+    
+    # Explicit configurations to avoid drift detection  
+    resource_labels = {
+      "goog-gke-node-pool-provisioning-model" = "on-demand"
+    }
+    
+    kubelet_config {
+      cpu_cfs_quota      = false
+      pod_pids_limit     = 0
+      cpu_manager_policy = "none"
+    }
+
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform",
       "https://www.googleapis.com/auth/logging.write",
