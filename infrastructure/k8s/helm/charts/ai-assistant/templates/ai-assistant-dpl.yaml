@@ -41,20 +41,37 @@ spec:
               value: {{ .Values.env.MODEL_OPENAI | quote }}
             - name: VECTOR_STORE_ID
               value: {{ .Values.env.VECTOR_STORE_ID | quote }}
-          {{- if .Values.probes.enable }}
+          {{- if .Values.healthCheck.enable }}
           readinessProbe:
             httpGet:
-              path: {{ .Values.probes.path | quote }}
+              path: {{ .Values.healthCheck.path | quote }}
               port: http
-            initialDelaySeconds: {{ .Values.probes.readiness.initialDelaySeconds }}
-            periodSeconds: {{ .Values.probes.readiness.periodSeconds }}
+            initialDelaySeconds: {{ default 5 .Values.healthCheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ default 15 .Values.healthCheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.readiness.timeoutSeconds }}
+            successThreshold: {{ default 1 .Values.healthCheck.readiness.successThreshold }}
+            failureThreshold: {{ default 2 .Values.healthCheck.readiness.failureThreshold }}
+
           livenessProbe:
             httpGet:
-              path: {{ .Values.probes.path | quote }}
+              path: {{ .Values.healthCheck.path | quote }}
               port: http
-            initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
-            periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
+            initialDelaySeconds: {{ default 10 .Values.healthCheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ default 30 .Values.healthCheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ default 3 .Values.healthCheck.liveness.failureThreshold }}
+
+          {{- if .Values.healthCheck.startup.enabled }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path | quote }}
+              port: http
+            periodSeconds: {{ default 5 .Values.healthCheck.startup.periodSeconds }}
+            failureThreshold: {{ default 30 .Values.healthCheck.startup.failureThreshold }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.startup.timeoutSeconds }}
           {{- end }}
+          {{- end }}
+
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
