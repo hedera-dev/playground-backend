@@ -44,22 +44,37 @@ spec:
             - name: MODE
               value: {{ .Values.env.mode | quote }}
             - name: LISTEN_ADDR
-              value: {{ .Values.env.listenAddr | quote }}
+              value: :{{ .Values.service.targetPort }}
             - name: DEBUG
               value: {{ .Values.env.debug | quote }}
-          {{- if .Values.healthCheck.enabled }}
-          livenessProbe:
-            httpGet:
-              path: {{ .Values.healthCheck.path }}
-              port: {{ .Values.healthCheck.port }}
-            initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.healthCheck.periodSeconds }}
+          {{- if .Values.healthCheck.enable }}
+          {{- if .Values.healthCheck.readiness.enabled }}
           readinessProbe:
-            httpGet:
-              path: {{ .Values.healthCheck.path }}
+            tcpSocket:
               port: {{ .Values.healthCheck.port }}
-            initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds }}
-            periodSeconds: {{ .Values.healthCheck.periodSeconds }}
+            initialDelaySeconds: {{ .Values.healthCheck.readiness.initialDelaySeconds | default 3 }}
+            periodSeconds: {{ .Values.healthCheck.readiness.periodSeconds | default 10 }}
+            timeoutSeconds: {{ .Values.healthCheck.readiness.timeoutSeconds | default 2 }}
+            successThreshold: {{ .Values.healthCheck.readiness.successThreshold | default 1 }}
+            failureThreshold: {{ .Values.healthCheck.readiness.failureThreshold | default 2 }}
+          {{- end }}
+          {{- if .Values.healthCheck.liveness.enabled }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.healthCheck.port }}
+            initialDelaySeconds: {{ .Values.healthCheck.liveness.initialDelaySeconds | default 10 }}
+            periodSeconds: {{ .Values.healthCheck.liveness.periodSeconds | default 20 }}
+            timeoutSeconds: {{ .Values.healthCheck.liveness.timeoutSeconds | default 2 }}
+            failureThreshold: {{ .Values.healthCheck.liveness.failureThreshold | default 3 }}
+          {{- end }}
+          {{- if .Values.healthCheck.startup.enabled }}
+          startupProbe:
+            tcpSocket:
+              port: {{ .Values.healthCheck.port }}
+            periodSeconds: {{ .Values.healthCheck.startup.periodSeconds | default 5 }}
+            failureThreshold: {{ .Values.healthCheck.startup.failureThreshold | default 30 }}
+            timeoutSeconds: {{ .Values.healthCheck.startup.timeoutSeconds | default 2 }}
+          {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

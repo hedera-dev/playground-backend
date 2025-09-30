@@ -29,7 +29,6 @@ env:
   
   # Service configuration
   mode: "spoe"              # Mode: spoe or http
-  listenAddr: ":9000"       # Listen address for SPOE mode
 
   debug: "true"              # Debug mode: true or false
 
@@ -41,10 +40,25 @@ resources:
     cpu: 100m
     memory: 100Mi
 
-# Health check configuration
 healthCheck:
-  enabled: false
-  path: /health
-  port: 8080
-  initialDelaySeconds: 10
-  periodSeconds: 30
+  enable: true
+  type: TCP      
+  port: spoe         
+  readiness:
+    enabled: true
+    initialDelaySeconds: 3
+    periodSeconds: 15
+    timeoutSeconds: 2
+    successThreshold: 1
+    failureThreshold: 2
+  liveness:
+    enabled: true
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 2
+    failureThreshold: 3
+  startup:
+    enabled: false    
+    periodSeconds: 5
+    failureThreshold: 30
+    timeoutSeconds: 2
