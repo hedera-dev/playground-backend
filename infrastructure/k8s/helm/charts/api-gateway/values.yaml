@@ -35,3 +35,8 @@ healthCheck:
     enabled: false
   readinessProbe:
     enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 30
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 2

@@ -41,10 +41,14 @@ spec:
               readOnly: true
           {{- if .Values.healthCheck.readinessProbe.enabled }}
           readinessProbe:
-            tcpSocket:
-              port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            httpGet:
+              path: {{ default "/api/playground/assistant/health" .Values.backend.healthPath }}
+              port: 80
+            initialDelaySeconds: {{ default 5 .Values.healthCheck.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ default 30 .Values.healthCheck.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ default 1 .Values.healthCheck.readinessProbe.successThreshold }}
+            failureThreshold: {{ default 2 .Values.healthCheck.readinessProbe.failureThreshold }}
           {{- end }}
           {{- if .Values.healthCheck.livenessProbe.enabled }}
           livenessProbe:
