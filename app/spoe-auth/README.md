@@ -120,113 +120,6 @@ Create a `spoe-auth.conf` file:
 
 ```
 
-### HAProxy Configuration
-
-```haproxy
-global
-    log stdout format raw local0
-
-defaults
-    log global
-    mode http
-    timeout connect 10s
-    timeout client 120s
-    timeout server 120s
-
-# SPOE Engine Configuration
-filter spoe engine spoe-auth config /etc/haproxy/spoe-auth.conf
-
-# Backend for SPOE agent
-backend backend_spoe-auth
-    mode tcp
-    server spoe-auth 127.0.0.1:9000
-
-frontend http
-    mode http
-    bind :8080
-    
-    # Apply SPOE filter
-    filter spoe-auth
-    
-    # Check authentication result
-    http-request deny if { var(spoe.auth_ok) -m bool false }
-    
-    # Extract user_id and set as header
-    http-request set-header X-User-ID %[var(spoe.user_id)] if { var(spoe.auth_ok) -m bool true }
-    
-    default_backend backend
-
-backend backend
-    mode http
-    server backend1 127.0.0.1:3000 check
-```
-
-## Kubernetes Deployment
-
-### Using Helm
-
-1. **Deploy spoe-auth:**
-   ```bash
-   helm install spoe-auth ./charts/spoe-auth \
-     --set env.pasetoV4PublicKeyHex="your_public_key_hex" \
-     --set env.requireAud="playground-api" \
-     --set env.requireIss="auth-service"
-   ```
-
-2. **Deploy api-gateway with SPOE:**
-   ```bash
-   helm install api-gateway ./charts/api-gateway
-   ```
-
-### Manual Deployment
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: spoe-auth
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: spoe-auth
-  template:
-    metadata:
-      labels:
-        app: spoe-auth
-    spec:
-      containers:
-      - name: spoe-auth
-        image: spoe-auth:latest
-        ports:
-        - containerPort: 9000
-        - containerPort: 8080
-        env:
-        - name: PASETO_V4_PUBLIC_KEY_HEX
-          value: "your_public_key_hex"
-        - name: MODE
-          value: "spoe"
-        - name: REQUIRE_AUD
-          value: "playground-api"
-        - name: REQUIRE_ISS
-          value: "auth-service"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: spoe-auth-svc
-spec:
-  selector:
-    app: spoe-auth
-  ports:
-  - port: 9000
-    targetPort: 9000
-    name: spoe
-  - port: 8080
-    targetPort: 8080
-    name: health
-```
-
 ## API Endpoints
 
 ### HTTP Mode
@@ -239,13 +132,6 @@ spec:
 - Listens on port 9000 for SPOE protocol
 - Health check available on port 8080
 
-## Security Best Practices
-
-1. **Use Audience and Issuer**: Always set `REQUIRE_AUD` and `REQUIRE_ISS` in production
-2. **Token Expiration**: Don't use `IGNORE_EXP=true` in production
-3. **Admin API Key**: Use strong, random API keys for admin bypass
-4. **Network Security**: Run SPOE service in private network
-5. **Monitoring**: Monitor authentication failures and token usage
 
 ## Development
 
@@ -264,10 +150,6 @@ go mod download
 # Build
 go build -o spoe-auth main.go
 
-# Run tests
-go test ./...
-```
-
 ### Testing
 
 ```bash
@@ -277,22 +159,3 @@ curl -H "Authorization: Bearer valid_token" http://localhost:8080/check
 # Test health endpoint
 curl http://localhost:8080/health
 ```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Token validation fails**: Check public key format and token structure
-2. **SPOE connection fails**: Verify HAProxy configuration and network connectivity
-3. **User ID not extracted**: Check `USER_FIELD` configuration and token claims
-
-### Logs
-
-The service logs authentication attempts and errors. Check logs for:
-- Token validation errors
-- SPOE connection issues
-- Configuration problems
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.

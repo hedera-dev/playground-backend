@@ -8,7 +8,7 @@ pods-secondary-range-name: "pods-range"
 pods-secondary-cidr: "10.20.0.0/16"
 services-secondary-range-name: "services-range"
 services-secondary-cidr: "10.30.0.0/20"
-lb-static-ip-name: "ai-assistant"
+lb-static-ip-name: "ip-lb-assistant"
 cluster-name: "k8s-hedera-playground-prod"
 node-pool-name: "pool-playground"
 node-count: 2

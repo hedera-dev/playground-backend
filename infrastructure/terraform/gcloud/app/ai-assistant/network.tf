@@ -21,8 +21,7 @@ resource "google_compute_subnetwork" "subnet_ai_assistant" {
   }
 }
 
-data "google_compute_address" "lb_static_ip" {
+data "google_compute_global_address" "lb_static_ip" {
   name   = local.deployment["lb-static-ip-name"]
-  region = local.deployment["region"]
 }
 
