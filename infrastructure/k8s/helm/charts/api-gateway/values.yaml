@@ -1,0 +1,42 @@
+replicaCount: 1
+
+image:
+  repository: haproxy
+  tag: "2.9"
+  pullPolicy: Always
+
+service:
+  type: NodePort
+  port: 80
+  globalIpName: ip-lb-assistant
+  domain: playground-assistant.kabila.app
+
+backend:
+  serviceName: prodai-ai-assistant-svc
+  servicePort: 3001
+  healthPath: /api/playground/assistant/health
+
+# SPOE Authentication configuration
+spoe:
+  serviceName: prodsa-spoe-auth-svc
+  servicePort: 9000
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 256Mi
+
+# Health checks configuration
+healthCheck:
+  livenessProbe:
+    enabled: false
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 30
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 2

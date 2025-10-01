@@ -1,0 +1,7 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: "{{ .Release.Name }}-api-gateway-cert"
+spec:
+  domains:
+    - {{ .Values.service.domain }}

@@ -1,0 +1,229 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-api-gateway-cm
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  400.json: | 
+    HTTP/1.1 400 Bad Request
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Bad Request",
+        "reason": "The server could not understand the request due to invalid syntax."
+    }
+  403.json: |
+    HTTP/1.1 403 Forbidden
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+
+    {
+        "message": "Forbidden Access",
+        "reason": "Request forbidden by administrative rules."
+    }
+  408.json: |
+    HTTP/1.1 408 Request Timeout
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Request Timeout",
+        "reason": "The server timed out waiting for the request."
+    }
+  429.json: |
+    HTTP/1.1 429 Too Many Requests
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    Retry-After: 60
+    
+    {
+        "message": "Too Many Requests",
+        "reason": "Rate limit exceeded."
+    }
+  500.json: |
+    HTTP/1.1 500 Internal Server Error
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Internal Server Error",
+        "reason": "The server encountered an unexpected condition that prevented it from fulfilling the request."
+    }
+  502.json: |
+    HTTP/1.1 502 Bad Gateway
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Bad Gateway",
+        "reason": "The server, while acting as a gateway or proxy, received an invalid response from the upstream server."
+    }
+  503.json: |
+    HTTP/1.1 503 Service Unavailable
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Service Unavailable",
+        "reason": "The server is currently unable to handle the request due to temporary overloading or maintenance of the server."
+    }
+  504.json: |
+    HTTP/1.1 504 Gateway Timeout
+    Content-Type: application/json
+    Access-Control-Allow-Origin: *
+    Access-Control-Allow-Headers: *
+    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
+    Access-Control-Max-Age: 3628800
+    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
+    
+    {
+        "message": "Gateway Timeout",
+        "reason": "The server, while acting as a gateway or proxy, did not receive a timely response from the upstream server."
+    }
+  haproxy.cfg: |
+    global
+        log stdout format raw local0
+        log /dev/log local0
+        user haproxy
+        group haproxy
+
+    defaults
+        log global
+        mode http
+        option httplog
+        # Log format explanation:
+        # %[var(txn.client_ip)]:%cp: IP real del cliente (extraída de X-Forwarded-For) y puerto
+        # [%t]: Timestamp de la petición
+        # %f/%b: Frontend/Backend utilizado
+        # %s/%ST/%B/%U/%T: Status codes y tiempos de respuesta
+        # %hr %hs: Headers de request y response
+        # %{+Q}r: Request completa (método, URL, protocolo)
+        log-format "%[var(txn.client_ip)]:%cp [%t] %f/%b %s/%ST/%B/%U/%T %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %hr %hs %{+Q}r"
+        timeout connect 10s
+        timeout client 120s
+        timeout server 120s
+
+        errorfile 400 /usr/local/etc/haproxy/errors/400.json
+        errorfile 403 /usr/local/etc/haproxy/errors/403.json
+        errorfile 408 /usr/local/etc/haproxy/errors/408.json
+        errorfile 429 /usr/local/etc/haproxy/errors/429.json
+        errorfile 500 /usr/local/etc/haproxy/errors/500.json
+        errorfile 502 /usr/local/etc/haproxy/errors/502.json
+        errorfile 503 /usr/local/etc/haproxy/errors/503.json
+        errorfile 504 /usr/local/etc/haproxy/errors/504.json
+
+
+    frontend http
+        mode http
+        bind :{{ .Values.service.port }}
+        
+        # Rate limiting stick-tables
+        stick-table type string len 64 size 100k expire 120s store http_req_rate(60s)
+        
+        # Capture real client IP with priority
+        http-request set-var(txn.client_ip) req.hdr_ip(x-forwarded-for,1)
+        
+        # Define ACLs first
+        acl is_health_check path_beg /api/playground/assistant/health
+        
+        # IP-based rate limiting (using separate table)
+        http-request track-sc1 var(txn.client_ip) table ip_rate_limit
+        acl ip_rate_limit_exceeded sc_http_req_rate(1) gt 180
+        http-request deny deny_status 429 if ip_rate_limit_exceeded !is_health_check
+        
+        # Path restrictions - only allow /api/playground/assistant paths
+        acl allowed_path path_beg /api/playground/assistant
+        http-request deny deny_status 404 if !allowed_path
+        
+        
+        # SPOE Engine Configuration
+        filter spoe engine auth config /usr/local/etc/haproxy/spoe-auth.conf
+
+        
+        # Check authentication result (skip for health checks)
+        # SPOE sets boolean true/false, HAProxy interprets as boolean
+        http-request deny if !{ var(txn.spoe.auth_ok) -m bool true } !is_health_check
+
+        # Extract user_id from SPOE response and set as header
+        http-request set-header X-User-ID %[var(txn.spoe.user_id)] if { var(txn.spoe.auth_ok) -m bool true }
+
+        # Rate limiting by user_id (after SPOE authentication)
+        http-request track-sc0 var(txn.spoe.user_id) table http if { var(txn.spoe.auth_ok) -m bool true } !is_health_check
+        
+        # Rate limit: deny if more than 6 requests per minute per user (skip for health checks)
+        acl user_rate_limit_exceeded sc_http_req_rate(0) gt 6
+        http-request deny deny_status 429 if user_rate_limit_exceeded { var(txn.spoe.auth_ok) -m bool true } !is_health_check
+
+        # Debug headers - add to response for debugging
+        # http-response add-header X-Debug-ClientIP %[var(txn.client_ip)]
+        # http-response add-header X-Debug-SPOE-UserID %[var(txn.spoe.user_id)]
+        # http-response add-header X-RateLimit-Limit "6"
+        # http-response add-header X-RateLimit-Window "60"
+        # http-response add-header X-RateLimit-Remaining %[sc_http_req_rate(0),sub(6)] if { var(txn.spoe.auth_ok) -m bool true }
+
+
+        default_backend assistant
+
+    # Separate stick-table for IP rate limiting
+    backend ip_rate_limit
+        stick-table type ip size 100k expire 120s store http_req_rate(60s)
+
+    # Backend for SPOE agent
+    backend backend-spoe-auth
+        mode tcp
+        server spoe-auth {{ .Values.spoe.serviceName }}:{{ .Values.spoe.servicePort }}
+
+    backend assistant
+        option httpchk GET {{ .Values.backend.healthPath }}
+        http-check expect status 200
+        # Pass user_id to backend application
+        http-request set-header X-User-ID %[var(txn.spoe.user_id)] if { var(txn.spoe.auth_ok) -m bool true }
+        server {{ .Values.backend.serviceName }} {{ .Values.backend.serviceName }}:{{ .Values.backend.servicePort }} check
+
+  spoe-auth.conf: |
+    [auth]
+    spoe-agent spoe-auth
+        log global
+        messages verify
+        option var-prefix spoe
+        timeout hello 100ms
+        timeout idle 30s
+        timeout processing 15ms
+        use-backend backend-spoe-auth
+
+    spoe-message verify
+        args auth=hdr(Authorization) api_key=hdr(X-API-Key) cookie=hdr(Cookie) method=method path=path host=hdr(host)
+        event on-frontend-http-request if ! { path -m beg /api/playground/assistant/health }
+
+

@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "{{ .Release.Name }}-api-gateway-ingress"
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    networking.gke.io/managed-certificates: "{{ .Release.Name }}-api-gateway-cert"
+    kubernetes.io/ingress.global-static-ip-name: "{{ .Values.service.globalIpName }}"
+    kubernetes.io/ingress.allow-http: "true"
+spec:
+  ingressClassName: gce
+  defaultBackend:
+    service:
+      name: "{{ .Release.Name }}-api-gateway-np"
+      port:
+        number: {{ .Values.service.port }}

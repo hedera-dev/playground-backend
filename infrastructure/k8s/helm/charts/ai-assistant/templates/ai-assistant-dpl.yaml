@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Release.Name }}-ai-assistant-dpl"
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: {{ .Values.env.NODE_ENV | quote }}
+            - name: PORT
+              value: {{ .Values.env.PORT | quote }}
+            - name: HOST
+              value: {{ .Values.env.HOST | quote }}
+            - name: OPENAI_API_KEY
+              value: {{ .Values.env.OPENAI_API_KEY | quote }}
+            - name: INSTRUCTIONS_PATH
+              value: "/config/instructions.txt"
+            - name: MODEL_OPENAI
+              value: {{ .Values.env.MODEL_OPENAI | quote }}
+            - name: VECTOR_STORE_ID
+              value: {{ .Values.env.VECTOR_STORE_ID | quote }}
+          {{- if .Values.healthCheck.enable }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path | quote }}
+              port: http
+            initialDelaySeconds: {{ default 5 .Values.healthCheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ default 15 .Values.healthCheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.readiness.timeoutSeconds }}
+            successThreshold: {{ default 1 .Values.healthCheck.readiness.successThreshold }}
+            failureThreshold: {{ default 2 .Values.healthCheck.readiness.failureThreshold }}
+
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path | quote }}
+              port: http
+            initialDelaySeconds: {{ default 10 .Values.healthCheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ default 30 .Values.healthCheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ default 3 .Values.healthCheck.liveness.failureThreshold }}
+
+          {{- if .Values.healthCheck.startup.enabled }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.healthCheck.path | quote }}
+              port: http
+            periodSeconds: {{ default 5 .Values.healthCheck.startup.periodSeconds }}
+            failureThreshold: {{ default 30 .Values.healthCheck.startup.failureThreshold }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.startup.timeoutSeconds }}
+          {{- end }}
+          {{- end }}
+
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: ai-assistant-config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: ai-assistant-config
+          configMap:
+            name: "{{ .Release.Name }}-ai-assistant-cm"

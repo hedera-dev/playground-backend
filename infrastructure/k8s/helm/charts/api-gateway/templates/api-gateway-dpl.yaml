@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "{{ .Release.Name }}-api-gateway"
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: haproxy-errorfiles
+              mountPath: /usr/local/etc/haproxy/errors
+            - name: haproxy-config
+              mountPath: /usr/local/etc/haproxy/haproxy.cfg
+              subPath: haproxy.cfg
+              readOnly: true
+            - name: spoe-config
+              mountPath: /usr/local/etc/haproxy/spoe-auth.conf
+              subPath: spoe-auth.conf
+              readOnly: true
+          {{- if .Values.healthCheck.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ default "/api/playground/assistant/health" .Values.backend.healthPath }}
+              port: 80
+            initialDelaySeconds: {{ default 5 .Values.healthCheck.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ default 30 .Values.healthCheck.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ default 5 .Values.healthCheck.readinessProbe.timeoutSeconds }}
+            successThreshold: {{ default 1 .Values.healthCheck.readinessProbe.successThreshold }}
+            failureThreshold: {{ default 2 .Values.healthCheck.readinessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.healthCheck.livenessProbe.enabled }}
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          {{- end }}
+      volumes:
+        - name: haproxy-config
+          configMap:
+            name: "{{ .Release.Name }}-api-gateway-cm"
+            items:
+              - key: haproxy.cfg
+                path: haproxy.cfg
+        - name: haproxy-errorfiles
+          configMap:
+            name: "{{ .Release.Name }}-api-gateway-cm"
+            items:
+              - key: 400.json
+                path: 400.json
+              - key: 403.json
+                path: 403.json
+              - key: 408.json
+                path: 408.json
+              - key: 429.json
+                path: 429.json
+              - key: 500.json
+                path: 500.json
+              - key: 502.json
+                path: 502.json
+              - key: 503.json
+                path: 503.json
+              - key: 504.json
+                path: 504.json
+        - name: spoe-config
+          configMap:
+            name: "{{ .Release.Name }}-api-gateway-cm"
+            items:
+              - key: spoe-auth.conf
+                path: spoe-auth.conf
+
+

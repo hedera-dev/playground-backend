@@ -1,0 +1,17 @@
+project-id: "playground-production-441511"
+region: "us-west1"
+zone: "us-west1-a"
+vpc-network: "vpc-ai-assistant"
+subnetwork: "subnet-ai-assistant-us-west1"
+subnet-ip-cidr: "10.3.0.0/20"
+pods-secondary-range-name: "pods-range"
+pods-secondary-cidr: "10.20.0.0/16"
+services-secondary-range-name: "services-range"
+services-secondary-cidr: "10.30.0.0/20"
+lb-static-ip-name: "ai-assistant"
+cluster-name: "k8s-hedera-playground-prod"
+node-pool-name: "pool-playground"
+node-count: 2
+node-machine-type: "e2-medium"
+node-disk-size-gb: 20
+node-disk-type: "pd-balanced"
