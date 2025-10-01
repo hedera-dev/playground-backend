@@ -224,6 +224,6 @@ data:
 
     spoe-message verify
         args auth=hdr(Authorization) api_key=hdr(X-API-Key) cookie=hdr(Cookie) method=method path=path host=hdr(host)
-        event on-frontend-http-request if ! { path -m beg /api/playground/assistant/health }
+        event on-frontend-http-request if ! { path -m beg /api/playground/assistant/health } { path -m beg /api/playground/assistant }
 
 
