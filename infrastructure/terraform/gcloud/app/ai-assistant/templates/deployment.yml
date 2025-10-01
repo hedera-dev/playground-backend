@@ -12,6 +12,6 @@ lb-static-ip-name: "ip-lb-assistant"
 cluster-name: "k8s-hedera-playground-prod"
 node-pool-name: "pool-playground"
 node-count: 2
-node-machine-type: "e2-medium"
+node-machine-type: "n2d-standard-2"
 node-disk-size-gb: 20
 node-disk-type: "pd-balanced"

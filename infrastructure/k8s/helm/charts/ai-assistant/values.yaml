@@ -1,7 +1,7 @@
-replicaCount: 2
+replicaCount: 3
 
 image:
-  repository: us-central1-docker.pkg.dev/playground-develop-441415/playground/ai-assistant
+  repository: us-west1-docker.pkg.dev/playground-production-441511/playground/ai-assistant
   tag: "1.0.0-beta.4"
   pullPolicy: IfNotPresent
 
@@ -41,8 +41,8 @@ healthCheck:
 
 resources:
   requests:
-    cpu: 50m
+    cpu: 100m
     memory: 128Mi
   limits:
-    cpu: 500m
+    cpu: 600m
     memory: 512Mi

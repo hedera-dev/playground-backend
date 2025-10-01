@@ -34,11 +34,11 @@ env:
 
 resources:
   requests:
-    cpu: 25m
-    memory: 20Mi
+    cpu: 50m
+    memory: 32Mi
   limits:
     cpu: 100m
-    memory: 100Mi
+    memory: 128Mi
 
 healthCheck:
   enable: true
