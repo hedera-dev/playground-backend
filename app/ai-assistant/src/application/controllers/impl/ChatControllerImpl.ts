@@ -13,11 +13,7 @@ export class ChatControllerImpl {
   }
 
   async registerRoutes(): Promise<void> {
-    // Register CORS for streaming
-    await this.fastify.register((await import('@fastify/cors')).default, {
-      origin: true,
-      credentials: true,
-    });
+    // CORS is handled by HAProxy
 
     this.fastify.post(`${this.basePath}/chat`, async (request: FastifyRequest, reply: FastifyReply) => {
       const body = request.body as { messages: UIMessage[] };
