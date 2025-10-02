@@ -156,6 +156,10 @@ data:
         
         # Define ACLs first
         acl is_health_check path_beg /api/playground/assistant/health
+        acl is_options_request method OPTIONS
+        
+        # Handle CORS preflight requests
+        http-request return status 200 hdr Access-Control-Allow-Origin "*" hdr Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" hdr Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID" hdr Access-Control-Allow-Credentials "true" hdr Access-Control-Max-Age "3628800" if is_options_request
         
         # IP-based rate limiting (using separate table)
         http-request track-sc1 var(txn.client_ip) table ip_rate_limit
@@ -192,6 +196,11 @@ data:
         # http-response add-header X-RateLimit-Window "60"
         # http-response add-header X-RateLimit-Remaining %[sc_http_req_rate(0),sub(6)] if { var(txn.spoe.auth_ok) -m bool true }
 
+        http-response add-header Access-Control-Allow-Origin "*"
+        http-response add-header Access-Control-Allow-Credentials "true"
+        http-response add-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID"
+        http-response add-header Access-Control-Max-Age 3628800
+        http-response add-header Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH"
 
         default_backend assistant
 
