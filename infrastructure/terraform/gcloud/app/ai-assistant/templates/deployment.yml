@@ -1,6 +1,7 @@
 project-id: "playground-production-441511"
 region: "us-west1"
 zone: "us-west1-a"
+master-cidr: "172.16.0.0/28"
 vpc-network: "vpc-ai-assistant"
 subnetwork: "subnet-ai-assistant-us-west1"
 subnet-ip-cidr: "10.3.0.0/20"
