@@ -3,6 +3,7 @@ import { openai } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { ICodeIntegrationAgent } from '../types/index.js';
 import { ApplyCodeChangesSchema, ProposeCodeChange } from '../tools/CodeTools.js';
+import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 
 const SYSTEM_PROMPT = `
 You are a code placement specialist - the second agent in a two-agent system.
@@ -32,24 +33,24 @@ Rules:
 6. Match context text EXACTLY, including whitespace and indentation
 
 Process each change separately with applyCode tool. Be very careful with line counting.
-`
+`;
 
 export class CodeIntegrationAgent implements ICodeIntegrationAgent {
-
   private model: string;
 
   constructor(model: string) {
     this.model = model;
   }
 
-  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string): Promise<any[]> {
+  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string): Promise<any[]> {
     if (!code || !proposedChanges.changes || proposedChanges.changes.length === 0) {
       return [];
     }
 
-    const numberedCode = code.split('\n').map((line, index) =>
-      `${(index + 1).toString().padStart(3, ' ')}| ${line}`
-    ).join('\n');
+    const numberedCode = code
+      .split('\n')
+      .map((line, index) => `${(index + 1).toString().padStart(3, ' ')}| ${line}`)
+      .join('\n');
 
     const prompt = `
 You are a code placement specialist.Your task is to find exact line numbers for proposed changes.
@@ -79,10 +80,13 @@ Process each change one by one carefully and return all changes in the appliedCh
         prompt: prompt,
         system: SYSTEM_PROMPT,
         schema: ApplyCodeChangesSchema,
-        schemaName: "CodeChanges",
-        schemaDescription: "Array of code changes with exact line numbers"
+        schemaName: 'CodeChanges',
+        schemaDescription: 'Array of code changes with exact line numbers'
       });
-
+      const tokens = await result.usage;
+      await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_INPUT_TOKENS', tokens.inputTokens!);
+      await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_OUTPUT_TOKENS', tokens.outputTokens!);
+      await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
       return result?.object?.appliedChanges || [];
     } catch (error) {
       console.error('Error generating code changes:', error);

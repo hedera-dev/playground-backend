@@ -41,6 +41,10 @@ spec:
               value: {{ .Values.env.MODEL_OPENAI | quote }}
             - name: VECTOR_STORE_ID
               value: {{ .Values.env.VECTOR_STORE_ID | quote }}
+            - name: REDIS_URL
+              value: {{ .Values.env.REDIS_URL | quote }}
+            - name: TOKENS_LIMIT_PER_MONTH
+              value: {{ .Values.env.TOKENS_LIMIT_PER_MONTH | quote }}
           {{- if .Values.healthCheck.enable }}
           readinessProbe:
             httpGet:

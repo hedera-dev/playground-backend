@@ -1,10 +1,11 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { ChatService } from "../../../domain/services/ChatService.js";
-import { ChatRequestSchema, ChatSession } from "../../../types.js";
-import { UIMessage } from "ai";
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { ChatService } from '../../../domain/services/ChatService.js';
+import { ChatRequestSchema, ChatSession } from '../../../types.js';
+import { UIMessage } from 'ai';
+import { th } from 'zod/v4/locales';
 
 export class ChatControllerImpl {
-  private basePath = "/api/playground/assistant";
+  private basePath = '/api/playground/assistant';
   private chatService: ChatService;
   private sessions: Map<string, ChatSession> = new Map();
 
@@ -13,22 +14,15 @@ export class ChatControllerImpl {
   }
 
   async registerRoutes(): Promise<void> {
-    // CORS is handled by HAProxy
+    this.fastify.post(`${this.basePath}/chat`, this.startConversation.bind(this));
+    this.fastify.get(`${this.basePath}/chat/history/:conversationId`, this.getConversationHistory.bind(this));
+  }
 
-    this.fastify.post(`${this.basePath}/chat`, async (request: FastifyRequest, reply: FastifyReply) => {
-      const body = request.body as { messages: UIMessage[] };
-      const { messages, ...rest } = body;
-      console.log('messages', messages);
-      console.log('rest', rest);
-      return this.chatService.streamChat(messages);
-    });
-
-    // Get conversation history
-    this.fastify.get(`${this.basePath}/chat/history/:conversationId`, async (request: FastifyRequest, reply: FastifyReply) => {
-      return this.getConversationHistory(request, reply);
-    });
-
-    console.log("Chat HTTP routes registered successfully");
+  private async startConversation(request: FastifyRequest, reply: FastifyReply) {
+    const body = request.body as { messages: UIMessage[] };
+    const userId = (request.headers['x-user-id'] as string) || 'unknown';
+    const { messages } = body;
+    return this.chatService.streamChat(messages, userId);
   }
 
   private async getConversationHistory(request: FastifyRequest, reply: FastifyReply): Promise<any> {
@@ -36,7 +30,7 @@ export class ChatControllerImpl {
 
     const session = this.sessions.get(conversationId);
     if (!session) {
-      reply.status(404).send({ error: "Conversation not found" });
+      reply.status(404).send({ error: 'Conversation not found' });
       return;
     }
 
@@ -44,12 +38,8 @@ export class ChatControllerImpl {
       conversationId: session.id,
       history: session.conversationHistory,
       createdAt: session.createdAt,
-      lastActivity: session.lastActivity,
+      lastActivity: session.lastActivity
     };
-  }
-
-  private generateId(prefix: string): string {
-    return `${prefix}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
   }
 
   // Clean up old sessions (call this periodically)

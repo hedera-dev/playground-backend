@@ -168,13 +168,11 @@ data:
         
         # Path restrictions - only allow /api/playground/assistant paths
         acl allowed_path path_beg /api/playground/assistant
-        http-request deny deny_status 404 if !allowed_path
-        
+        http-request deny deny_status 404 if !allowed_path    
         
         # SPOE Engine Configuration
         filter spoe engine auth config /usr/local/etc/haproxy/spoe-auth.conf
-
-        
+      
         # Check authentication result (skip for health checks)
         # SPOE sets boolean true/false, HAProxy interprets as boolean
         http-request deny if !{ var(txn.spoe.auth_ok) -m bool true } !is_health_check
@@ -186,7 +184,7 @@ data:
         http-request track-sc0 var(txn.spoe.user_id) table http if { var(txn.spoe.auth_ok) -m bool true } !is_health_check
         
         # Rate limit: deny if more than 6 requests per minute per user (skip for health checks)
-        acl user_rate_limit_exceeded sc_http_req_rate(0) gt 6
+        acl user_rate_limit_exceeded sc_http_req_rate(0) gt 10
         http-request deny deny_status 429 if user_rate_limit_exceeded { var(txn.spoe.auth_ok) -m bool true } !is_health_check
 
         # Debug headers - add to response for debugging
