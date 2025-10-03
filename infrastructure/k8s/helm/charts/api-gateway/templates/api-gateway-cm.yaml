@@ -183,7 +183,7 @@ data:
         # Rate limiting by user_id (after SPOE authentication)
         http-request track-sc0 var(txn.spoe.user_id) table http if { var(txn.spoe.auth_ok) -m bool true } !is_health_check
         
-        # Rate limit: deny if more than 6 requests per minute per user (skip for health checks)
+        # Rate limit: deny if more than 10 requests per minute per user (skip for health checks)
         acl user_rate_limit_exceeded sc_http_req_rate(0) gt 10
         http-request deny deny_status 429 if user_rate_limit_exceeded { var(txn.spoe.auth_ok) -m bool true } !is_health_check
 

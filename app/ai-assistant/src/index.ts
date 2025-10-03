@@ -1,6 +1,5 @@
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { config } from 'dotenv';
-import cors from '@fastify/cors';
 import { ChatControllerImpl } from './application/controllers/impl/ChatControllerImpl.js';
 import HealthControllerImpl from './application/controllers/impl/HealthControllerImpl.js';
 import { logger } from './utils/logger.js';
@@ -13,7 +12,39 @@ const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
 const fastify: FastifyInstance = Fastify({
-  loggerInstance: logger as FastifyBaseLogger
+  loggerInstance: logger as FastifyBaseLogger,
+  disableRequestLogging: true // Disable automatic request logging
+});
+
+// Custom request logging with healthcheck filter
+fastify.addHook('onRequest', async (request, reply) => {
+  // Skip logging for healthcheck endpoint
+  if (request.url.includes('/health')) {
+    return;
+  }
+  request.log.info(
+    {
+      method: request.method,
+      url: request.url
+    },
+    'incoming request'
+  );
+});
+
+fastify.addHook('onResponse', async (request, reply) => {
+  // Skip logging for healthcheck endpoint
+  if (request.url.includes('/health')) {
+    return;
+  }
+  request.log.info(
+    {
+      method: request.method,
+      url: request.url,
+      statusCode: reply.statusCode,
+      responseTime: reply.elapsedTime
+    },
+    'request completed'
+  );
 });
 
 fastify.setErrorHandler((error, request, reply) => {
@@ -45,13 +76,6 @@ fastify.setNotFoundHandler((request, reply) => {
 
 async function start() {
   try {
-    // Register CORS
-    await fastify.register(cors, {
-      origin: true, // Allow all origins in development
-      methods: ['GET', 'POST', 'PUT', 'DELETE'],
-      credentials: true
-    });
-
     // Initialize optional Redis connection if REDIS_URL is provided
     await CacheClient.connect();
     const healthController = new HealthControllerImpl(fastify);
