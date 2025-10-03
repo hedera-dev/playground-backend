@@ -30,7 +30,7 @@ export class ChatControllerImpl {
 
     const session = this.sessions.get(conversationId);
     if (!session) {
-      reply.status(404).send({ error: 'Conversation not found' });
+      reply.status(404).send({ message: 'Conversation not found' });
       return;
     }
 
