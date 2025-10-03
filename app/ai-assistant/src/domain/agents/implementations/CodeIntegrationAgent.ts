@@ -52,17 +52,12 @@ export class CodeIntegrationAgent implements ICodeIntegrationAgent {
       .map((line, index) => `${(index + 1).toString().padStart(3, ' ')}| ${line}`)
       .join('\n');
 
+    const changes = JSON.stringify(proposedChanges.changes);
+
     const prompt = `
-You are a code placement specialist.Your task is to find exact line numbers for proposed changes.
-
-Original code with line numbers:
-    \`\`\`
-${numberedCode}
-\`\`\`
-
-Proposed changes:
-${JSON.stringify(proposedChanges.changes, null, 2)}
-
+You are a code placement specialist. Your job is to locate the exact line numbers for proposed changes and preserve correct indentation.
+Code:<code>${numberedCode}</code>
+Changes:<changes>${changes}</changes>
 INSTRUCTIONS:
 1. Find the EXACT contextBefore text in the numbered code above
 2. Find the EXACT contextAfter text in the numbered code above  
@@ -71,7 +66,7 @@ INSTRUCTIONS:
 5. Use precise startLine and endLine numbers (1-based line numbering)
 6. Return an array of code changes with exact line numbers
 
-Process each change one by one carefully and return all changes in the appliedChanges array.
+Focus on accuracy of line numbers and faithful indentation. Do not modify unrelated code.
 `;
 
     try {
@@ -93,4 +88,5 @@ Process each change one by one carefully and return all changes in the appliedCh
       return [];
     }
   }
+
 }
