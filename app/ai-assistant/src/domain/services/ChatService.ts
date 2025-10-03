@@ -1,17 +1,15 @@
-import fs from "node:fs";
+import fs from 'node:fs';
 import { convertToModelMessages, UIMessage } from 'ai';
-import { createAgentLogger } from "../../utils/logger.js";
-import { UserMetadata, UserMetadataType } from "../../types.js";
-import { INSTRUCTIONS_1_B } from "../../utils/prompts.js";
-import {
-  CodeReviewAgent,
-  GeneralAssistantAgent,
-  ExecutionAnalyzerAgent,
-  IMockAgent
-} from "../agents/index.js";
-import { MockAgent } from "../agents/implementations/MockAgent.js";
+import { createAgentLogger } from '../../utils/logger.js';
+import { UserMetadata, UserMetadataType } from '../../types.js';
+import { INSTRUCTIONS_1_B } from '../../utils/prompts.js';
+import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
+import { MockAgent } from '../agents/implementations/MockAgent.js';
+import { CacheClient } from '../../infrastructure/persistence/RedisConnector.js';
+import { APIError } from '../../utils/errors.js';
 
-const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || "vs_688ceeab314c8191a557a849b28cf815";
+const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_688ceeab314c8191a557a849b28cf815';
+const TOKENS_LIMIT_PER_MONTH = Number(process.env.TOKENS_LIMIT_PER_MONTH) || 100000;
 export class ChatService {
   private mockMode: boolean = false;
   private logger: ReturnType<typeof createAgentLogger>;
@@ -42,15 +40,19 @@ export class ChatService {
     }
   }
 
-  async streamChat(userMessages: UIMessage[]) {
+  async streamChat(userMessages: UIMessage[], userId: string) {
+    const tokenUsed = await CacheClient.getNumber(userId);
+    if (Number(tokenUsed) > TOKENS_LIMIT_PER_MONTH) {
+      throw new APIError('Token limit exceeded', 429);
+    }
     // Extract user input for logging
     const lastMessage = userMessages[userMessages.length - 1];
     // UIMessage has parts array, extract text from text parts
-    const userInput = lastMessage ?
-      lastMessage.parts
-        .filter(part => part.type === 'text')
-        .map(part => (part as any).text)
-        .join(' ') || 'No text content'
+    const userInput = lastMessage
+      ? lastMessage.parts
+          .filter((part) => part.type === 'text')
+          .map((part) => (part as any).text)
+          .join(' ') || 'No text content'
       : 'No content';
     this.logger.logSession(`Processing chat request`);
 
@@ -75,11 +77,11 @@ export class ChatService {
 
     switch (metadata.type) {
       case UserMetadataType.CODE_REVIEW:
-        return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata);
+        return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata, userId);
       case UserMetadataType.EXECUTION_ANALYSIS:
-        return this.executionAnalyzerAgent.streamText(userModelMessages, metadata);
+        return this.executionAnalyzerAgent.streamText(userModelMessages, metadata, userId);
       case UserMetadataType.GENERAL_ASSISTANT:
-        return this.generalAssistantAgent.streamText(userModelMessages, metadata);
+        return this.generalAssistantAgent.streamText(userModelMessages, metadata, userId);
       default:
         this.logger.logError('SYSTEM', `Unknown metadata type: ${metadata.type}`);
         return null;
@@ -96,11 +98,11 @@ export class ChatService {
       return {
         results: `Vector search results for: ${query}`,
         query: query,
-        vectorStoreId: VECTOR_STORE_ID,
+        vectorStoreId: VECTOR_STORE_ID
       };
     } catch (error) {
       this.logger.logError('VECTOR-STORE', error);
-      return { results: "No results found" };
+      return { results: 'No results found' };
     }
   }
 
