@@ -1,6 +1,7 @@
 project-id: "playground-develop-441415"
 region: "us-central1"
 zone: "us-central1-a"
+master-cidr: "172.16.0.0/28"
 vpc-network: "vpc-ai-assistant"
 subnetwork: "subnet-ai-assistant-us-central1"
 subnet-ip-cidr: "10.3.0.0/20"

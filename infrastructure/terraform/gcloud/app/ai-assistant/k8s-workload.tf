@@ -14,6 +14,12 @@ resource "google_container_cluster" "k8s_cluster_playground" {
     cluster_secondary_range_name  = local.deployment["pods-secondary-range-name"]
     services_secondary_range_name = local.deployment["services-secondary-range-name"]
   }
+
+  private_cluster_config {
+    enable_private_nodes    = true
+    enable_private_endpoint = false
+    master_ipv4_cidr_block  = local.deployment["master-cidr"]
+  }
 }
 
 resource "google_container_node_pool" "node_pool_playground" {
@@ -47,4 +53,6 @@ resource "google_container_node_pool" "node_pool_playground" {
       "https://www.googleapis.com/auth/trace.append"
     ]
   }
+
+  depends_on = [google_compute_router_nat.gke_nat]
 }
