@@ -105,8 +105,9 @@ async function start() {
 					health: `/api/playground/assistant/health`,
 					stats: `/api/stats`
 				},
+				logger_level: process.env.LOG_LEVEL,
 				mockMode: process.env.ENABLE_MOCK_MODE === 'true',
-				twoAgentMode: process.env.ENABLE_TWO_AGENT_MODE === 'true'
+
 			},
 			`🚀 Hedera Playground Backend running on http://${HOST}:${PORT}`
 		);

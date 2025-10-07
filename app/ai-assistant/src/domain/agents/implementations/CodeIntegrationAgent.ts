@@ -4,6 +4,7 @@ import { generateObject } from 'ai';
 import { ICodeIntegrationAgent } from '../types/index.js';
 import { ApplyCodeChangesSchema, ProposeCodeChange } from '../tools/CodeTools.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
+import { AppLogger, createLogger } from '../../../utils/logger.js';
 
 const SYSTEM_PROMPT = `
 You are a code placement specialist - the second agent in a two-agent system.
@@ -37,12 +38,15 @@ Process each change separately with applyCode tool. Be very careful with line co
 
 export class CodeIntegrationAgent implements ICodeIntegrationAgent {
   private model: string;
+  private logger: AppLogger;
 
   constructor(model: string) {
     this.model = model;
+    this.logger = createLogger(undefined, 'CodeIntegrationAgent');
   }
 
-  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string): Promise<any[]> {
+  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string, sessionId: string): Promise<any[]> {
+    const requestLogger = this.logger.child({ userId, sessionId });
     if (!code || !proposedChanges.changes || proposedChanges.changes.length === 0) {
       return [];
     }
@@ -70,7 +74,7 @@ Focus on accuracy of line numbers and faithful indentation. Do not modify unrela
 `;
 
     try {
-      const result: any = await generateObject({
+      const result = await generateObject({
         model: openai(this.model),
         prompt: prompt,
         system: SYSTEM_PROMPT,
@@ -78,13 +82,22 @@ Focus on accuracy of line numbers and faithful indentation. Do not modify unrela
         schemaName: 'CodeChanges',
         schemaDescription: 'Array of code changes with exact line numbers'
       });
-      const tokens = await result.usage;
+      const tokens = result.usage;
+      requestLogger.debug('Token usage', {
+        tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
+      });
+
       await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_INPUT_TOKENS', tokens.inputTokens!);
       await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_OUTPUT_TOKENS', tokens.outputTokens!);
       await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+
+      requestLogger.debug('Code changes generated', {
+        codeChanges: result?.object?.appliedChanges,
+      });
+
       return result?.object?.appliedChanges || [];
     } catch (error) {
-      console.error('Error generating code changes:', error);
+      requestLogger.error('Error generating code changes:', error);
       return [];
     }
   }

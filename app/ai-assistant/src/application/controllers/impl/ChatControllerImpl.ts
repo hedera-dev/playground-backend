@@ -2,7 +2,8 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ChatService } from '../../../domain/services/ChatService.js';
 import { ChatRequestSchema, ChatSession } from '../../../types.js';
 import { UIMessage } from 'ai';
-import { th } from 'zod/v4/locales';
+
+const isDevelopment = process.env.NODE_ENV !== 'production';
 
 export class ChatControllerImpl {
   private basePath = '/api/playground/assistant';
@@ -14,15 +15,28 @@ export class ChatControllerImpl {
   }
 
   async registerRoutes(): Promise<void> {
+
+    if (isDevelopment) {
+      // Register CORS for dev environment
+      await this.fastify.register((await import('@fastify/cors')).default, {
+        origin: true,
+        credentials: true,
+      });
+    }
+
     this.fastify.post(`${this.basePath}/chat`, this.startConversation.bind(this));
     this.fastify.get(`${this.basePath}/chat/history/:conversationId`, this.getConversationHistory.bind(this));
   }
 
   private async startConversation(request: FastifyRequest, reply: FastifyReply) {
-    const body = request.body as { messages: UIMessage[] };
-    const userId = (request.headers['x-user-id'] as string) || 'unknown';
+    const body = request.body as { messages: UIMessage[], userId: string, id: string };
+    let userId = (request.headers['x-user-id'] as string) || 'unknown';
+    if (isDevelopment) {
+      userId = body.userId;
+    }
+    const sessionId = body.id;
     const { messages } = body;
-    return this.chatService.streamChat(messages, userId);
+    return this.chatService.streamChat(messages, userId, sessionId);
   }
 
   private async getConversationHistory(request: FastifyRequest, reply: FastifyReply): Promise<any> {

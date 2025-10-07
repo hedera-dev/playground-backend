@@ -17,172 +17,136 @@ export const logger = pino({
   } : undefined
 });
 
-// Agent-specific logging utilities using the main logger
-export class AgentLogger {
-  private sessionId: string;
-  private startTime: number;
+/**
+ * Context information for logging
+*/
+export interface LogContext {
+  userId?: string;       // User identifier
+  sessionId?: string;    // Session identifier
+  [key: string]: any;    // Additional custom fields
+}
 
-  constructor() {
-    this.sessionId = Math.random().toString(36).substring(2, 8);
+/**
+ * Generic logger wrapper that adds context and timing to Pino logs
+ * Compatible with Fastify and can be used across the application
+*/
+export class AppLogger {
+  private context: LogContext;
+  private startTime: number;
+  private agent?: string;
+
+  constructor(context: LogContext = {}, agent?: string) {
+    this.agent = agent;
+    this.context = context;
     this.startTime = Date.now();
   }
 
+  /**
+   * Get elapsed time since logger creation in milliseconds
+   */
   private getElapsed(): number {
     return Date.now() - this.startTime;
   }
 
-  logSession(message: string) {
-    logger.info({
-      agent: 'SESSION',
-      sessionId: this.sessionId,
-      elapsed: this.getElapsed()
-    }, `🚀 [SESSION-${this.sessionId}] ${message}`);
-  }
-
-  logAgent1Start(userInput: string) {
-    const truncatedInput = userInput.length > 100 ? userInput.substring(0, 100) + '...' : userInput;
-
-    logger.info({
-      agent: 'AGENT-1',
-      sessionId: this.sessionId,
+  /**
+   * Build log object with context and elapsed time
+   */
+  private buildLogObject(additionalContext?: Record<string, any>): Record<string, any> {
+    return {
+      ...this.context,
       elapsed: this.getElapsed(),
-      phase: 'START',
-      userInput: truncatedInput
-    }, `📝 [AGENT-1] Analyzing user request`);
-
-    // Debug level for full input visibility
-    logger.debug({
-      agent: 'AGENT-1',
-      sessionId: this.sessionId,
-      fullUserInput: userInput
-    }, `🔍 [AGENT-1-DEBUG] Full user input`);
+      ...additionalContext
+    };
   }
 
-  logAgent1Output(proposedChanges: any) {
-    const changes = proposedChanges?.changes || [];
-
-    logger.info({
-      agent: 'AGENT-1',
-      sessionId: this.sessionId,
-      elapsed: this.getElapsed(),
-      phase: 'OUTPUT',
-      changeCount: changes.length,
-      changes: changes.map((change: any, idx: number) => ({
-        index: idx + 1,
-        mode: change.mode?.toUpperCase(),
-        description: change.description
-      }))
-    }, `✅ [AGENT-1] Changes proposed (${changes.length})`);
-
-    // Debug level for full proposed changes (entrada al Agent 2)
-    logger.debug({
-      agent: 'AGENT-1',
-      sessionId: this.sessionId,
-      fullProposedChanges: proposedChanges
-    }, `🔍 [AGENT-1→AGENT-2] Full proposed changes`);
-  }
-
-  logAgent2Start(changes: any[], codeLength: number) {
-    logger.info({
-      agent: 'AGENT-2',
-      sessionId: this.sessionId,
-      elapsed: this.getElapsed(),
-      phase: 'START',
-      changesToProcess: changes.length,
-      originalCodeLines: codeLength
-    }, `🎯 [AGENT-2] Determining exact locations (${changes.length} changes, ${codeLength} lines)`);
-
-    // Debug level for complete input from Agent 1
-    logger.debug({
-      agent: 'AGENT-2',
-      sessionId: this.sessionId,
-      inputFromAgent1: changes,
-      codeLength
-    }, `🔍 [AGENT-2-DEBUG] Full input from Agent 1`);
-  }
-
-  logAgent2Output(appliedChanges: any[]) {
-    logger.info({
-      agent: 'AGENT-2',
-      sessionId: this.sessionId,
-      elapsed: this.getElapsed(),
-      phase: 'OUTPUT',
-      appliedCount: appliedChanges.length,
-      locations: appliedChanges.map((change: any, idx: number) => ({
-        index: idx + 1,
-        mode: change.mode?.toUpperCase(),
-        startLine: change.startLine,
-        endLine: change.endLine
-      }))
-    }, `✅ [AGENT-2] Locations determined (${appliedChanges.length} changes)`);
-
-    // Debug level for full applied changes
-    logger.debug({
-      agent: 'AGENT-2',
-      sessionId: this.sessionId,
-      fullAppliedChanges: appliedChanges
-    }, `🔍 [AGENT-2-DEBUG] Full applied changes`);
-  }
-
-  logTokenUsage(agent: string, usage: any) {
-    if (usage) {
-      const total = usage.totalTokens || 0;
-      const prompt = usage.promptTokens || 0;
-      const completion = usage.completionTokens || 0;
-
-      logger.info({
-        agent,
-        sessionId: this.sessionId,
-        elapsed: this.getElapsed(),
-        tokenUsage: {
-          promptTokens: prompt,
-          completionTokens: completion,
-          totalTokens: total
-        }
-      }, `💰 [${agent}] Tokens: ${total} (P:${prompt} + C:${completion})`);
+  /**
+   * Format message with agent prefix if available
+   */
+  private formatMessage(message: string): string {
+    if (this.agent) {
+      return `[${this.agent}] ${message}`;
     }
+    return message;
   }
 
-  logError(agent: string, error: any) {
-    logger.error({
-      agent,
-      sessionId: this.sessionId,
-      elapsed: this.getElapsed(),
+  /**
+   * Log info level message
+   */
+  info(message: string, additionalContext?: Record<string, any>): void {
+    logger.info(this.buildLogObject(additionalContext), this.formatMessage(message));
+  }
+
+  /**
+   * Log debug level message
+   */
+  debug(message: string, additionalContext?: Record<string, any>): void {
+    logger.debug(this.buildLogObject(additionalContext), this.formatMessage(message));
+  }
+
+  /**
+   * Log warning level message
+   */
+  warn(message: string, additionalContext?: Record<string, any>): void {
+    logger.warn(this.buildLogObject(additionalContext), this.formatMessage(message));
+  }
+
+  /**
+   * Log error level message
+   */
+  error(message: string, error?: Error | any, additionalContext?: Record<string, any>): void {
+    const errorContext = error ? {
       error: {
-        message: error.message || error,
-        stack: error.stack
+        message: error.message || String(error),
+        stack: error.stack,
+        ...error
       }
-    }, `❌ [${agent}] Error: ${error.message || error}`);
+    } : {};
+
+    logger.error(
+      this.buildLogObject({ ...errorContext, ...additionalContext }),
+      this.formatMessage(message)
+    );
   }
 
-  logFinalResult(status: string, changeCount: number) {
-    const totalElapsed = this.getElapsed();
-
-    logger.info({
-      agent: 'FINAL',
-      sessionId: this.sessionId,
-      elapsed: totalElapsed,
-      status,
-      changesApplied: changeCount,
-      totalDuration: totalElapsed
-    }, `🎉 [FINAL] Session completed: ${status} | Changes: ${changeCount} | Duration: ${totalElapsed}ms`);
+  /**
+   * Update context (useful for adding userId or sessionId later)
+   */
+  setContext(newContext: Partial<LogContext>): void {
+    this.context = { ...this.context, ...newContext };
   }
 
-  // Reset for new session
-  resetSession() {
-    this.sessionId = Math.random().toString(36).substring(2, 8);
+  /**
+   * Get current context
+   */
+  getContext(): LogContext {
+    return { ...this.context };
+  }
+
+  /**
+   * Reset timer (useful for measuring specific operations)
+   */
+  resetTimer(): void {
     this.startTime = Date.now();
-    logger.info({
-      agent: 'SESSION',
-      sessionId: this.sessionId
-    }, `🔄 [SESSION-${this.sessionId}] New session started`);
   }
 
-  // Direct access to the main logger for advanced usage
+  /**
+   * Create a child logger with additional context
+   */
+  child(additionalContext: LogContext): AppLogger {
+    return new AppLogger({ ...this.context, ...additionalContext }, this.agent);
+  }
+
+  /**
+   * Direct access to the underlying Pino logger for advanced usage
+   */
   getPinoLogger(): pino.Logger {
     return logger;
   }
 }
 
-// Convenience function to create agent loggers
-export const createAgentLogger = () => new AgentLogger();
+/**
+ * Create a new logger instance with optional context
+ */
+export const createLogger = (context?: LogContext, agent?: string): AppLogger => {
+  return new AppLogger(context, agent);
+};
