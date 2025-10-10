@@ -1,8 +1,6 @@
-import fs from 'node:fs';
 import { convertToModelMessages, UIMessage } from 'ai';
 import { createLogger, AppLogger } from '../../utils/logger.js';
 import { UserMetadata, UserMetadataType } from '../../types.js';
-import { INSTRUCTIONS_1_B } from '../../utils/prompts.js';
 import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
 import { MockAgent } from '../agents/implementations/MockAgent.js';
 import { CacheClient } from '../../infrastructure/persistence/RedisConnector.js';
@@ -10,6 +8,11 @@ import { APIError } from '../../utils/errors.js';
 
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_688ceeab314c8191a557a849b28cf815';
 const TOKENS_LIMIT_PER_MONTH = Number(process.env.TOKENS_LIMIT_PER_MONTH) || 100000;
+const CODE_REVIEW_MODEL = process.env.CODE_REVIEW_MODEL || 'gpt-4o-mini';
+const CODE_INTEGRATION_MODEL = process.env.CODE_INTEGRATION_MODEL || 'gpt-4o-mini';
+const GENERAL_ASSISTANT_MODEL = process.env.GENERAL_ASSISTANT_MODEL || 'gpt-4o-mini';
+const EXECUTION_ANALYZER_MODEL = process.env.EXECUTION_ANALYZER_MODEL || 'gpt-4o-mini';
+
 export class ChatService {
   private mockMode: boolean = false;
   private logger: AppLogger;
@@ -23,9 +26,9 @@ export class ChatService {
     this.mockMode = process.env.ENABLE_MOCK_MODE === 'true';
     this.logger = createLogger();
 
-    this.codeReviewAgent = new CodeReviewAgent('gpt-4o-mini', 'gpt-4o-mini');
-    this.generalAssistantAgent = new GeneralAssistantAgent('gpt-4o-mini');
-    this.executionAnalyzerAgent = new ExecutionAnalyzerAgent('gpt-4o-mini');
+    this.codeReviewAgent = new CodeReviewAgent(CODE_REVIEW_MODEL, CODE_INTEGRATION_MODEL);
+    this.generalAssistantAgent = new GeneralAssistantAgent(GENERAL_ASSISTANT_MODEL);
+    this.executionAnalyzerAgent = new ExecutionAnalyzerAgent(EXECUTION_ANALYZER_MODEL);
 
     if (this.mockMode) {
       this.mockAgent = new MockAgent();

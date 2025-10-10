@@ -61,7 +61,7 @@ export class CodeReviewAgent implements ICodeReviewAgent {
     const messages: ModelMessage[] = [];
 
     if (metadata.language) {
-      messages.push({ role: 'user', content: `Programming language: ${metadata.language}` });
+      messages.push({ role: 'user', content: `<lang>${metadata.language}</lang>` });
     }
 
     if (metadata.currentLine) {
@@ -71,7 +71,7 @@ export class CodeReviewAgent implements ICodeReviewAgent {
     if (metadata.code) {
       messages.push({
         role: 'user',
-        content: `Code to review:\n\`\`\`\n${metadata.code}\n\`\`\``
+        content: `<code>${metadata.code}</code>`
       });
     }
 

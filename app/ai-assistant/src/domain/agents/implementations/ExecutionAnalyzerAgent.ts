@@ -1,7 +1,7 @@
 import { ModelMessage, streamText } from 'ai';
 import { IExecutionAnalyzerAgent } from '../types/Agent.js';
 import { UserMetadata } from '../../../types.js';
-import { BASE_INSTRUCTIONS } from '../../../utils/prompts.js';
+import { PROMPT_EXECUTION_ANALYSIS } from '../../../utils/prompts.js';
 import { openai } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -25,7 +25,7 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     const result = streamText({
       model: openai(this.model),
       messages,
-      system: BASE_INSTRUCTIONS
+      system: PROMPT_EXECUTION_ANALYSIS
     });
 
     const tokens = await result.usage;
@@ -46,7 +46,7 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     if (metadata.output) {
       messages.push({
         role: 'user',
-        content: `Execution output to analyze:\n\`\`\`\n${metadata.output}\n\`\`\``
+        content: `<output>${metadata.output}</output>`
       });
     }
 
