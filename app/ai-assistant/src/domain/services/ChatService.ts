@@ -1,8 +1,6 @@
-import fs from 'node:fs';
 import { convertToModelMessages, UIMessage } from 'ai';
-import { createAgentLogger } from '../../utils/logger.js';
+import { createLogger, AppLogger } from '../../utils/logger.js';
 import { UserMetadata, UserMetadataType } from '../../types.js';
-import { INSTRUCTIONS_1_B } from '../../utils/prompts.js';
 import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
 import { MockAgent } from '../agents/implementations/MockAgent.js';
 import { CacheClient } from '../../infrastructure/persistence/RedisConnector.js';
@@ -10,87 +8,100 @@ import { APIError } from '../../utils/errors.js';
 
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_688ceeab314c8191a557a849b28cf815';
 const TOKENS_LIMIT_PER_MONTH = Number(process.env.TOKENS_LIMIT_PER_MONTH) || 100000;
+const CODE_REVIEW_MODEL = process.env.CODE_REVIEW_MODEL || 'gpt-4o-mini';
+const CODE_INTEGRATION_MODEL = process.env.CODE_INTEGRATION_MODEL || 'gpt-4o-mini';
+const GENERAL_ASSISTANT_MODEL = process.env.GENERAL_ASSISTANT_MODEL || 'gpt-4o-mini';
+const EXECUTION_ANALYZER_MODEL = process.env.EXECUTION_ANALYZER_MODEL || 'gpt-4o-mini';
+
 export class ChatService {
   private mockMode: boolean = false;
-  private logger: ReturnType<typeof createAgentLogger>;
+  private logger: AppLogger;
 
   private codeReviewAgent: CodeReviewAgent;
   private generalAssistantAgent: GeneralAssistantAgent;
   private executionAnalyzerAgent: ExecutionAnalyzerAgent;
   private mockAgent: IMockAgent | null = null;
 
-  private readonly defaultInstructions = INSTRUCTIONS_1_B;
-  private readonly twoAgentMode: boolean;
-
   constructor() {
-    this.twoAgentMode = process.env.ENABLE_TWO_AGENT_MODE === 'true';
     this.mockMode = process.env.ENABLE_MOCK_MODE === 'true';
-    this.logger = createAgentLogger();
+    this.logger = createLogger();
 
-    this.codeReviewAgent = new CodeReviewAgent('gpt-4o-mini', 'gpt-4o-mini');
-    this.generalAssistantAgent = new GeneralAssistantAgent('gpt-4o-mini');
-    this.executionAnalyzerAgent = new ExecutionAnalyzerAgent('gpt-4o-mini');
+    this.codeReviewAgent = new CodeReviewAgent(CODE_REVIEW_MODEL, CODE_INTEGRATION_MODEL);
+    this.generalAssistantAgent = new GeneralAssistantAgent(GENERAL_ASSISTANT_MODEL);
+    this.executionAnalyzerAgent = new ExecutionAnalyzerAgent(EXECUTION_ANALYZER_MODEL);
 
     if (this.mockMode) {
       this.mockAgent = new MockAgent();
-      this.logger.logSession('Mock mode enabled');
-    }
-    if (this.twoAgentMode) {
-      this.logger.logSession('Two-agent mode enabled');
+      this.logger.info('Mock mode enabled');
     }
   }
 
-  async streamChat(userMessages: UIMessage[], userId: string) {
+  async streamChat(userMessages: UIMessage[], userId: string, sessionId: string) {
+    const requestLogger = this.logger.child({ userId, sessionId });
+
     const tokenUsed = await CacheClient.getNumber(userId);
     if (Number(tokenUsed) > TOKENS_LIMIT_PER_MONTH) {
+      requestLogger.error('Token limit exceeded', undefined, {
+        tokenUsed,
+        limit: TOKENS_LIMIT_PER_MONTH
+      });
       throw new APIError('Token limit exceeded', 429);
     }
+
     // Extract user input for logging
     const lastMessage = userMessages[userMessages.length - 1];
-    // UIMessage has parts array, extract text from text parts
     const userInput = lastMessage
       ? lastMessage.parts
-          .filter((part) => part.type === 'text')
-          .map((part) => (part as any).text)
-          .join(' ') || 'No text content'
+        .filter((part) => part.type === 'text')
+        .map((part) => (part as any).text)
+        .join(' ') || 'No text content'
       : 'No content';
-    this.logger.logSession(`Processing chat request`);
+
+    requestLogger.info('Processing chat request', {
+      messageCount: userMessages.length,
+      inputLength: userInput.length
+    });
+
+    requestLogger.debug('Full user input', { userInput });
 
     if (this.isMockMode()) {
-      this.logger.logSession('Returning saved mock response');
+      requestLogger.info('Returning saved mock response');
       return this.mockAgent?.streamMockResponse();
     }
 
     const userModelMessages = convertToModelMessages(userMessages);
     const metadata = this.getMetadata(userMessages);
 
-    this.logger.logSession(`Metadata: ${JSON.stringify(metadata, null, 2)}`);
-
-    if (this.twoAgentMode) {
-      this.logger.logAgent1Start(userInput);
-    }
+    requestLogger.debug('Metadata received', { metadata });
 
     if (!metadata) {
-      this.logger.logError('SYSTEM', 'No metadata found');
+      requestLogger.error('No metadata found in request');
       return null; // TODO: Handle this case
     }
 
-    switch (metadata.type) {
-      case UserMetadataType.CODE_REVIEW:
-        return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata, userId);
-      case UserMetadataType.EXECUTION_ANALYSIS:
-        return this.executionAnalyzerAgent.streamText(userModelMessages, metadata, userId);
-      case UserMetadataType.GENERAL_ASSISTANT:
-        return this.generalAssistantAgent.streamText(userModelMessages, metadata, userId);
-      default:
-        this.logger.logError('SYSTEM', `Unknown metadata type: ${metadata.type}`);
-        return null;
+    try {
+      switch (metadata.type) {
+        case UserMetadataType.CODE_REVIEW:
+          return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata, userId, sessionId);
+        case UserMetadataType.EXECUTION_ANALYSIS:
+          return this.executionAnalyzerAgent.streamText(userModelMessages, metadata, userId, sessionId);
+        case UserMetadataType.GENERAL_ASSISTANT:
+          return this.generalAssistantAgent.streamText(userModelMessages, metadata, userId, sessionId);
+        default:
+          requestLogger.error('Unknown metadata type', undefined, { type: metadata.type });
+          return null;
+      }
+    } catch (error) {
+      requestLogger.error('Error processing chat request', error);
+      throw error;
     }
   }
 
   // Future method for vector store search (ready for when you want to enable it)
   private async searchVectorStore(query: string): Promise<any> {
     try {
+      this.logger.debug('Searching vector store', { query, vectorStoreId: VECTOR_STORE_ID });
+
       // TODO: Implement actual vector store search when needed
       // This will use OpenAI's vector store API when implemented
 
@@ -101,7 +112,7 @@ export class ChatService {
         vectorStoreId: VECTOR_STORE_ID
       };
     } catch (error) {
-      this.logger.logError('VECTOR-STORE', error);
+      this.logger.error('Vector store search failed', error, { query });
       return { results: 'No results found' };
     }
   }

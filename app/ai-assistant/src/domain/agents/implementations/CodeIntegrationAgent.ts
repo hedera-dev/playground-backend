@@ -4,45 +4,20 @@ import { generateObject } from 'ai';
 import { ICodeIntegrationAgent } from '../types/index.js';
 import { ApplyCodeChangesSchema, ProposeCodeChange } from '../tools/CodeTools.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
-
-const SYSTEM_PROMPT = `
-You are a code placement specialist - the second agent in a two-agent system.
-
-Your task:
-- Receive proposed changes with contextBefore and contextAfter
-- Find the exact location in the original code by matching the context
-- Use applyCode tool ONCE for each change with precise startLine and endLine
-
-CRITICAL MATCHING PROCESS:
-1. Look for the EXACT contextBefore text in the original code
-2. Find the line that comes AFTER contextBefore
-3. Verify that contextAfter appears AFTER that line
-4. The target line is the one BETWEEN contextBefore and contextAfter
-
-EXAMPLE:
-If contextBefore is "console.log('Transfer HBAR');" (line 30)
-And contextAfter is "console.log('Transaction ID');" (line 32)
-Then the target line is 31 (the line between them)
-
-Rules:
-1. Use 1-based line numbering (first line = 1)
-2. For "replace" mode: startLine = endLine = the line to replace
-3. For "add" mode: startLine = endLine = insertion point
-4. For "delete" mode: startLine and endLine define range to delete
-5. ONLY call applyCode ONCE per change - no duplicates
-6. Match context text EXACTLY, including whitespace and indentation
-
-Process each change separately with applyCode tool. Be very careful with line counting.
-`;
+import { AppLogger, createLogger } from '../../../utils/logger.js';
+import { PROMPT_CODE_INTEGRATION } from '../../../utils/prompts.js';
 
 export class CodeIntegrationAgent implements ICodeIntegrationAgent {
   private model: string;
+  private logger: AppLogger;
 
   constructor(model: string) {
     this.model = model;
+    this.logger = createLogger(undefined, 'CodeIntegrationAgent');
   }
 
-  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string): Promise<any[]> {
+  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string, sessionId: string): Promise<any[]> {
+    const requestLogger = this.logger.child({ userId, sessionId });
     if (!code || !proposedChanges.changes || proposedChanges.changes.length === 0) {
       return [];
     }
@@ -52,45 +27,42 @@ export class CodeIntegrationAgent implements ICodeIntegrationAgent {
       .map((line, index) => `${(index + 1).toString().padStart(3, ' ')}| ${line}`)
       .join('\n');
 
+    const changes = JSON.stringify(proposedChanges.changes);
+
+    requestLogger.debug('Proposed changes', proposedChanges);
+
     const prompt = `
-You are a code placement specialist.Your task is to find exact line numbers for proposed changes.
-
-Original code with line numbers:
-    \`\`\`
-${numberedCode}
-\`\`\`
-
-Proposed changes:
-${JSON.stringify(proposedChanges.changes, null, 2)}
-
-INSTRUCTIONS:
-1. Find the EXACT contextBefore text in the numbered code above
-2. Find the EXACT contextAfter text in the numbered code above  
-3. The target line is between these two contexts
-4. Keep the indentation of the original code
-5. Use precise startLine and endLine numbers (1-based line numbering)
-6. Return an array of code changes with exact line numbers
-
-Process each change one by one carefully and return all changes in the appliedChanges array.
+Code:<code>${numberedCode}</code>
+Changes:<changes>${changes}</changes>
 `;
 
     try {
-      const result: any = await generateObject({
+      const result = await generateObject({
         model: openai(this.model),
         prompt: prompt,
-        system: SYSTEM_PROMPT,
+        system: PROMPT_CODE_INTEGRATION,
         schema: ApplyCodeChangesSchema,
         schemaName: 'CodeChanges',
         schemaDescription: 'Array of code changes with exact line numbers'
       });
-      const tokens = await result.usage;
+      const tokens = result.usage;
+      requestLogger.debug('Token usage', {
+        tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
+      });
+
       await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_INPUT_TOKENS', tokens.inputTokens!);
       await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_OUTPUT_TOKENS', tokens.outputTokens!);
       await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+
+      requestLogger.debug('Code changes generated', {
+        codeChanges: result?.object?.appliedChanges,
+      });
+
       return result?.object?.appliedChanges || [];
     } catch (error) {
-      console.error('Error generating code changes:', error);
+      requestLogger.error('Error generating code changes:', error);
       return [];
     }
   }
+
 }
