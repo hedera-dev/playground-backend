@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: us-central1-docker.pkg.dev/playground-develop-441415/playground/ai-assistant
-  tag: "1.0.0-beta.5"
+  tag: "1.0.1"
   pullPolicy: IfNotPresent
 
 service:
@@ -12,14 +12,22 @@ containerPort: 3001
 
 env:
   NODE_ENV: production
+  LOG_LEVEL: debug
   PORT: "3001"
   HOST: "0.0.0.0"
   OPENAI_API_KEY: ""
-  MODEL_OPENAI: "gpt-4o"
   VECTOR_STORE_ID: "vs_688ceeab314c8191a557a849b28cf815"
-  # Redis/Valkey connection string, e.g. rediss://user:pass@host:port/db
-  REDIS_URL: ""
+  redis:
+    host: valkey-cluster-portal-dev-do-user-4434163-0.i.db.ondigitalocean.com
+    port: 25061
+    user: default
+    password: ""
   TOKENS_LIMIT_PER_MONTH: 10000
+  ENABLE_MOCK_MODE: false
+  CODE_REVIEW_MODEL: gpt-4o
+  CODE_INTEGRATION_MODEL: gpt-4o-mini
+  GENERAL_ASSISTANT_MODEL: gpt-4o-mini
+  EXECUTION_ANALYZER_MODEL: gpt-4o-mini
 
 # ai-assistant - valores relevantes para health checks
 healthCheck:

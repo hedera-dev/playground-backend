@@ -29,6 +29,8 @@ spec:
           env:
             - name: NODE_ENV
               value: {{ .Values.env.NODE_ENV | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.env.LOG_LEVEL | quote }}
             - name: PORT
               value: {{ .Values.env.PORT | quote }}
             - name: HOST
@@ -37,12 +39,20 @@ spec:
               value: {{ .Values.env.OPENAI_API_KEY | quote }}
             - name: INSTRUCTIONS_PATH
               value: "/config/instructions.txt"
-            - name: MODEL_OPENAI
-              value: {{ .Values.env.MODEL_OPENAI | quote }}
+            - name: CODE_REVIEW_MODEL
+              value: {{ .Values.env.CODE_REVIEW_MODEL | quote }}
+            - name: CODE_INTEGRATION_MODEL
+              value: {{ .Values.env.CODE_INTEGRATION_MODEL | quote }}
+            - name: GENERAL_ASSISTANT_MODEL
+              value: {{ .Values.env.GENERAL_ASSISTANT_MODEL | quote }}
+            - name: EXECUTION_ANALYZER_MODEL
+              value: {{ .Values.env.EXECUTION_ANALYZER_MODEL | quote }}
+            - name: ENABLE_MOCK_MODE
+              value: {{ .Values.env.ENABLE_MOCK_MODE | quote }}
             - name: VECTOR_STORE_ID
               value: {{ .Values.env.VECTOR_STORE_ID | quote }}
             - name: REDIS_URL
-              value: {{ .Values.env.REDIS_URL | quote }}
+              value: "rediss://{{ .Values.env.redis.user }}:{{ .Values.env.redis.password }}@{{ .Values.env.redis.host }}:{{ .Values.env.redis.port }}"
             - name: TOKENS_LIMIT_PER_MONTH
               value: {{ .Values.env.TOKENS_LIMIT_PER_MONTH | quote }}
           {{- if .Values.healthCheck.enable }}
