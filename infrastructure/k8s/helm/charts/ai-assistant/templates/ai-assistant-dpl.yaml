@@ -52,7 +52,7 @@ spec:
             - name: VECTOR_STORE_ID
               value: {{ .Values.env.VECTOR_STORE_ID | quote }}
             - name: REDIS_URL
-              value: "rediss://{{ .Values.env.redis.user }}:{{ .Values.env.redis.password }}@{{ .Values.env.redis.host }}:{{ .Values.env.redis.port }}"
+              value: "rediss://{{ .Values.env.redis.user }}:{{ .Values.env.redis.password }}@{{ .Values.env.redis.host }}:{{ .Values.env.redis.port }}/{{ .Values.env.redis.database }}"
             - name: TOKENS_LIMIT_PER_MONTH
               value: {{ .Values.env.TOKENS_LIMIT_PER_MONTH | quote }}
           {{- if .Values.healthCheck.enable }}

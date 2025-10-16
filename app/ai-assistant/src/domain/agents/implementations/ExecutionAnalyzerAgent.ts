@@ -29,7 +29,7 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     });
 
     const tokens = await result.usage;
-    requestLogger.debug('Token usage', {
+    requestLogger.info('Token usage', {
       tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
     });
 

@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: us-central1-docker.pkg.dev/playground-develop-441415/playground/ai-assistant
-  tag: "1.0.1"
+  tag: "1.0.3@sha256:489f0fae9d1166459efedf3eb945910fb15acf2b03731c919e3a7864129ba3dd"
   pullPolicy: IfNotPresent
 
 service:
@@ -22,9 +22,10 @@ env:
     port: 25061
     user: default
     password: ""
-  TOKENS_LIMIT_PER_MONTH: 10000
+    database: 6
+  TOKENS_LIMIT_PER_MONTH: 300000
   ENABLE_MOCK_MODE: false
-  CODE_REVIEW_MODEL: gpt-4o
+  CODE_REVIEW_MODEL: gpt-4o-mini
   CODE_INTEGRATION_MODEL: gpt-4o-mini
   GENERAL_ASSISTANT_MODEL: gpt-4o-mini
   EXECUTION_ANALYZER_MODEL: gpt-4o-mini

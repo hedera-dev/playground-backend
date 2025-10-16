@@ -42,7 +42,7 @@ export class CodeReviewAgent implements ICodeReviewAgent {
 
       const tokens = await result.usage;
 
-      requestLogger.debug('Token usage', {
+      requestLogger.info('Token usage', {
         tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
       });
 

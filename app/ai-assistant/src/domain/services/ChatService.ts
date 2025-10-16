@@ -40,6 +40,7 @@ export class ChatService {
     const requestLogger = this.logger.child({ userId, sessionId });
 
     const tokenUsed = await CacheClient.getNumber(userId);
+    requestLogger.debug('Token used', { tokenUsed: tokenUsed, tokenLimit: TOKENS_LIMIT_PER_MONTH });
     if (Number(tokenUsed) > Number(TOKENS_LIMIT_PER_MONTH)) {
       requestLogger.error('Token limit exceeded', undefined, {
         tokenUsed,
@@ -71,8 +72,6 @@ export class ChatService {
 
     const userModelMessages = convertToModelMessages(userMessages);
     const metadata = this.getMetadata(userMessages);
-
-    requestLogger.debug('Metadata received', { metadata });
 
     if (!metadata) {
       requestLogger.error('No metadata found in request');
