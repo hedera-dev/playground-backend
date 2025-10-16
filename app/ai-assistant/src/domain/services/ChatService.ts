@@ -40,7 +40,7 @@ export class ChatService {
     const requestLogger = this.logger.child({ userId, sessionId });
 
     const tokenUsed = await CacheClient.getNumber(userId);
-    if (Number(tokenUsed) > TOKENS_LIMIT_PER_MONTH) {
+    if (Number(tokenUsed) > Number(TOKENS_LIMIT_PER_MONTH)) {
       requestLogger.error('Token limit exceeded', undefined, {
         tokenUsed,
         limit: TOKENS_LIMIT_PER_MONTH
@@ -52,9 +52,9 @@ export class ChatService {
     const lastMessage = userMessages[userMessages.length - 1];
     const userInput = lastMessage
       ? lastMessage.parts
-        .filter((part) => part.type === 'text')
-        .map((part) => (part as any).text)
-        .join(' ') || 'No text content'
+          .filter((part) => part.type === 'text')
+          .map((part) => (part as any).text)
+          .join(' ') || 'No text content'
       : 'No content';
 
     requestLogger.info('Processing chat request', {
