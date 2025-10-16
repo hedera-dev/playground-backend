@@ -12,7 +12,7 @@ containerPort: 3001
 
 env:
   NODE_ENV: production
-  LOG_LEVEL: debug
+  LOG_LEVEL: info
   PORT: "3001"
   HOST: "0.0.0.0"
   OPENAI_API_KEY: ""
