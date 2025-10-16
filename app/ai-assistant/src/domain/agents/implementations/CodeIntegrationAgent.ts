@@ -46,7 +46,7 @@ Changes:<changes>${changes}</changes>
         schemaDescription: 'Array of code changes with exact line numbers'
       });
       const tokens = result.usage;
-      requestLogger.debug('Token usage', {
+      requestLogger.info('Token usage', {
         tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
       });
 

@@ -30,7 +30,7 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
       system: PROMPT_GENERAL
     });
     const tokens = await result.usage;
-    requestLogger.debug('Token usage', {
+    requestLogger.info('Token usage', {
       tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
     });
 
