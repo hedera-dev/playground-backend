@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: us-central1-docker.pkg.dev/playground-develop-441415/playground/ai-assistant
-  tag: "1.0.3@sha256:489f0fae9d1166459efedf3eb945910fb15acf2b03731c919e3a7864129ba3dd"
+  tag: "1.0.4@sha256:07b7e8a22e19bba9f9519e5377d85a371195a31cc92c759a66ff63af758da280"
   pullPolicy: IfNotPresent
 
 service:
