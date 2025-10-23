@@ -25,10 +25,10 @@ env:
     database: 6
   TOKENS_LIMIT_PER_MONTH: 300000
   ENABLE_MOCK_MODE: false
-  CODE_REVIEW_MODEL: gpt-4o-mini
-  CODE_INTEGRATION_MODEL: gpt-4o-mini
-  GENERAL_ASSISTANT_MODEL: gpt-4o-mini
-  EXECUTION_ANALYZER_MODEL: gpt-4o-mini
+  CODE_REVIEW_MODEL: gpt-4o
+  CODE_INTEGRATION_MODEL: gpt-4o
+  GENERAL_ASSISTANT_MODEL: gpt-4o
+  EXECUTION_ANALYZER_MODEL: gpt-4o
 
 # ai-assistant - valores relevantes para health checks
 healthCheck:
