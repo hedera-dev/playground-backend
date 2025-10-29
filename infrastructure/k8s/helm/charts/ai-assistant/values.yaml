@@ -29,6 +29,11 @@ env:
   CODE_INTEGRATION_MODEL: gpt-4o
   GENERAL_ASSISTANT_MODEL: gpt-4o
   EXECUTION_ANALYZER_MODEL: gpt-4o
+  PG_HOST: ""
+  PG_PORT: 5432
+  PG_DATABASE: ""
+  PG_USER: ""
+  PG_SSL: "false"
 
 # ai-assistant - valores relevantes para health checks
 healthCheck:
