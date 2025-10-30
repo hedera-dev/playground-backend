@@ -1,0 +1,89 @@
+name: Build AI Assistant
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag version"
+        required: true
+        default: "latest"
+        type: string
+      set_tag:
+        description: "Set a new git tag"
+        required: false
+        default: false
+        type: boolean
+      branch:
+        description: "Branch to build from"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  build_and_push:
+    name: Build and Push - ${{ github.event.inputs.version }}
+    runs-on: ubuntu-latest
+    environment: ${{
+      github.ref == "refs/heads/master" && "production" || "develop" }}
+    env:
+      DOCKER_IMAGE_PATH: "hedera-dev/playground-backend/app/ai-assistant"
+      DOCKERFILE_PATH: "app/ai-assistant/Dockerfile"
+      CONTEXT_PATH: "app/ai-assistant"
+
+    steps:
+      - name: Get branch name
+        id: get_branch
+        run: |
+          if [ -n "${{ github.event.inputs.branch }}" ]; then
+            echo "branch=${{ github.event.inputs.branch }}" >> $GITHUB_OUTPUT
+          else
+            echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: "hedera-dev/playground-backend"
+          token: ${{ secrets.REPOSITORY_PERMISSIONS_TOKEN }}
+          ref: ${{ github.event.inputs.branch != "" && github.event.inputs.branch || github.ref }}
+
+      - name: Set up Docker config
+        run: |
+          mkdir -p ~/.docker
+          echo '${{ secrets.DOCKER_CONFIG_JSON }}' > ~/.docker/config.json
+
+      - name: Display build info
+        run: |
+          echo "=========================================="
+          echo "🚀 BUILDING AI ASSISTANT"
+          echo "=========================================="
+          echo "Version: ${{ github.event.inputs.version }}"
+          echo "Branch: ${{ steps.get_branch.outputs.branch }}"
+          echo "Environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}"
+          echo "=========================================="
+
+      - name: Build Docker image
+        run: |
+          echo "Building docker image ${{ vars.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} from branch ${{ steps.get_branch.outputs.branch }}"
+          docker buildx build \
+                --platform linux/amd64 \
+                --no-cache \
+                --push \
+                --builder default \
+                -t ${{ vars.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} \
+                -f ${{ env.DOCKERFILE_PATH }} \
+                ${{ env.CONTEXT_PATH }}
+
+      - name: Create and push a new git tag
+        if: ${{ github.event.inputs.set_tag == true && github.event.inputs.version != 'latest' }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git fetch --all --tags
+          git checkout ${{ steps.get_branch.outputs.branch }}       
+          git tag -a "${{ github.event.inputs.version }}" -m "Version ${{ github.event.inputs.version }}"
+          git push origin "${{ github.event.inputs.version }}"
+
+      - name: Display success
+        run: |
+          echo "Successfully pushed: ${{ vars.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}"
