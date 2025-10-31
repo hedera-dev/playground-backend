@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ChatService } from '../../../domain/services/ChatService.js';
 import { ChatSession } from '../../../types.js';
 import { UIMessage } from 'ai';
-import { isDevelopment } from '../../../utils/environment.js';
+import { isLocal } from '../../../utils/environment.js';
 
 export class ChatControllerImpl {
   private basePath = '/api/playground/assistant';
@@ -14,7 +14,7 @@ export class ChatControllerImpl {
   }
 
   async registerRoutes(): Promise<void> {
-    if (isDevelopment) {
+    if (isLocal) {
       // Register CORS for dev environment
       await this.fastify.register((await import('@fastify/cors')).default, {
         origin: true,
@@ -29,7 +29,7 @@ export class ChatControllerImpl {
   private async startConversation(request: FastifyRequest, reply: FastifyReply) {
     const body = request.body as { messages: UIMessage[]; userId: string; id: string };
     let userId = (request.headers['x-user-id'] as string) || 'unknown';
-    if (isDevelopment) {
+    if (isLocal) {
       userId = body.userId;
     }
     const sessionId = body.id;

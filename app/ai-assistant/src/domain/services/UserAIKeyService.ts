@@ -4,7 +4,7 @@ import { getKmsService } from '../../infrastructure/kms/KmsService.js';
 import { createLogger, AppLogger } from '../../utils/logger.js';
 import OpenAI from 'openai';
 import { APIError } from '../../utils/errors.js';
-import { isDevelopment } from '../../utils/environment.js';
+import { isDevelopment, isLocal } from '../../utils/environment.js';
 
 const baseLogger = createLogger();
 
@@ -129,7 +129,7 @@ export class UserAIKeyService {
    * @returns true if the key is valid
    */
   private async validateAIKey(apiKey: string): Promise<boolean> {
-    if (isDevelopment) {
+    if (isDevelopment || isLocal) {
       return true;
     }
 
