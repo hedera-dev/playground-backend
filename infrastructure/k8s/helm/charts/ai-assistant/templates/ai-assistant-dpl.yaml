@@ -17,7 +17,7 @@ spec:
         app.kubernetes.io/name: {{ .Chart.Name }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
-      serviceAccountName: default
+      serviceAccountName: {{ .Values.serviceAccount }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -69,7 +69,15 @@ spec:
               valueFrom:
                 secretKeyRef:
                   key: psql_pwd
-                  name: "{{ .Release.Name }}-hedera-portal-api-secrets"
+                  name: "{{ .Release.Name }}-ai-assistant-secrets"
+            - name: GCP_PROJECT_ID
+              value: {{ .Values.env.GCP_PROJECT_ID | quote }}
+            - name: GCP_KMS_LOCATION
+              value: {{ .Values.env.GCP_KMS_LOCATION | quote }}
+            - name: GCP_KMS_KEYRING
+              value: {{ .Values.env.GCP_KMS_KEYRING | quote }}
+            - name: GCP_KMS_CRYPTO_KEY
+              value: {{ .Values.env.GCP_KMS_CRYPTO_KEY | quote }}
           {{- if .Values.healthCheck.enable }}
           readinessProbe:
             httpGet:

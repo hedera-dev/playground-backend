@@ -1,8 +1,10 @@
 replicaCount: 2
 
+serviceAccount: "ai-assistant-sa"
+
 image:
   repository: us-central1-docker.pkg.dev/playground-develop-441415/playground/ai-assistant
-  tag: "1.0.4@sha256:07b7e8a22e19bba9f9519e5377d85a371195a31cc92c759a66ff63af758da280"
+  tag: "1.1.0-feat-openai_byok-5"
   pullPolicy: IfNotPresent
 
 service:
@@ -11,7 +13,7 @@ service:
 containerPort: 3001
 
 env:
-  NODE_ENV: production
+  NODE_ENV: development
   LOG_LEVEL: debug
   PORT: "3001"
   HOST: "0.0.0.0"
@@ -29,11 +31,16 @@ env:
   CODE_INTEGRATION_MODEL: gpt-4o
   GENERAL_ASSISTANT_MODEL: gpt-4o
   EXECUTION_ANALYZER_MODEL: gpt-4o
-  PG_HOST: ""
-  PG_PORT: 5432
-  PG_DATABASE: ""
-  PG_USER: ""
-  PG_SSL: "false"
+  PG_HOST: "psql-cluster-portal-dev-do-user-4434163-0.i.db.ondigitalocean.com"
+  PG_PORT: 25060
+  PG_DATABASE: "hedera_portal_dev"
+  PG_USER: "doadmin"
+  PG_PASSWORD: ""
+  PG_SSL: "true"
+  GCP_PROJECT_ID: "playground-develop-441415"
+  GCP_KMS_LOCATION: "us-central1"
+  GCP_KMS_KEYRING: "ai-assistant-keyring"
+  GCP_KMS_CRYPTO_KEY: "user-ai-keys"
 
 # ai-assistant - valores relevantes para health checks
 healthCheck:
