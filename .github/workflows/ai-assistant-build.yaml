@@ -20,17 +20,82 @@ on:
         type: string
 
 jobs:
+  build_on_main:
+    name: Build AI Assistant - ${{ github.event.inputs.version }} - Main
+    runs-on: ubuntu-latest
+    environment: develop
+    permissions:
+      contents: "read"
+      id-token: "write"
+    env:
+      DOCKER_IMAGE_TAG: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
+    outputs:
+      develop_image_tag: ${{ steps.set-tag.outputs.develop_image_tag }}
+    steps:
+      - uses: "google-github-actions/auth@v2"
+        if: ${{ github.ref == 'refs/heads/master' }}
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDP }}
+          service_account: ${{ vars.GCP_IDP_SERVICE_ACCOUNT_ARTIFACT_REGISTRY }}
+
+      - name: "Set up Cloud SDK"
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: "google-github-actions/setup-gcloud@v2"
+        with:
+          version: ">= 363.0.0"
+
+      - name: Configure Docker to use gcloud as a credential helper
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_ID }}
+
+      - name: Pull the develop Docker image
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          docker pull ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
+
+      - id: set-tag
+        name: Set docker image tag output
+        run: echo "develop_image_tag=${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Save Docker image as tar
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          docker save -o /tmp/ai-assistant_${{ github.event.inputs.version }}.tar ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
+
+      - name: Upload artifact
+        if: ${{ github.ref == 'refs/heads/master' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.version }}
+          path: /tmp/ai-assistant_${{ github.event.inputs.version }}.tar
+          retention-days: 1
   build_and_push:
     name: Build and Push - ${{ github.event.inputs.version }}
     runs-on: ubuntu-latest
+    needs: build_on_main
     environment: ${{
       github.ref == "refs/heads/master" && "production" || "develop" }}
     env:
-      DOCKER_IMAGE_PATH: "hedera-dev/playground-backend/app/ai-assistant"
-      DOCKERFILE_PATH: "app/ai-assistant/Dockerfile"
-      CONTEXT_PATH: "app/ai-assistant"
+      DOCKER_IMAGE_TAG: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
+    permissions:
+      contents: "read"
+      id-token: "write"
 
     steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        if: ${{ github.ref == 'refs/heads/master' }}
+        with:
+          name: ${{ github.event.inputs.version }}
+          path: /tmp
+
+      - name: Load image
+        if: ${{ github.ref == 'refs/heads/master' }}
+        run: |
+          docker load --input /tmp/ai-assistant_${{ github.event.inputs.version }}.tar
+          docker image ls -a
+
       - name: Get branch name
         id: get_branch
         run: |
@@ -41,49 +106,52 @@ jobs:
           fi
 
       - name: Checkout code
+        if: ${{ github.ref != 'refs/heads/master' }}
         uses: actions/checkout@v4
         with:
           repository: "hedera-dev/playground-backend"
           token: ${{ secrets.REPOSITORY_PERMISSIONS_TOKEN }}
           ref: ${{ github.event.inputs.branch != "" && github.event.inputs.branch || github.ref }}
 
-      - name: Set up Docker config
-        run: |
-          mkdir -p ~/.docker
-          echo '${{ secrets.DOCKER_CONFIG_JSON }}' > ~/.docker/config.json
+      - name: Configure Google Cloud Auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDP }}
+          service_account: ${{ vars.GCP_IDP_SERVICE_ACCOUNT_ARTIFACT_REGISTRY }}
 
-      - name: Display build info
-        run: |
-          echo "=========================================="
-          echo "🚀 BUILDING AI ASSISTANT"
-          echo "=========================================="
-          echo "Version: ${{ github.event.inputs.version }}"
-          echo "Branch: ${{ steps.get_branch.outputs.branch }}"
-          echo "Environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}"
-          echo "=========================================="
+      - name: Set up Cloud SDK
+        uses: "google-github-actions/setup-gcloud@v2"
+        with:
+          version: ">= 363.0.0"
 
-      - name: Build Docker image
+      - name: Configure Docker to use gcloud as a credential helper
         run: |
-          echo "Building docker image ${{ vars.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} from branch ${{ steps.get_branch.outputs.branch }}"
-          docker buildx build \
-                --platform linux/amd64 \
-                --no-cache \
-                --push \
-                --builder default \
-                -t ${{ vars.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} \
-                -f ${{ env.DOCKERFILE_PATH }} \
-                ${{ env.CONTEXT_PATH }}
+          gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_ID }}
+
+      - name: Build or Tag Docker image
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/master" ]; then
+            echo "Tagging image: ${{ needs.build_on_main.outputs.develop_image_tag }} - to - ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}"
+            docker tag ${{ needs.build_on_main.outputs.develop_image_tag }} ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
+          else
+            echo "Building image for develop branch"
+            docker build --platform linux/amd64 --build-arg READ_PACKAGES_TOKEN=${{ secrets.REPOSITORY_PERMISSIONS_TOKEN }} -t ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }} ./app/ai-assistant/.
+          fi
+
+      - name: Push Docker image to Google Artifact Registry
+        run: |
+          docker push ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
 
       - name: Create and push a new git tag
-        if: ${{ github.event.inputs.set_tag == true && github.event.inputs.version != 'latest' }}
+        if: ${{ github.event.inputs.set_tag == 'true' && github.event.inputs.version != 'latest' && github.ref != 'refs/heads/master' }}
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git fetch --all --tags
-          git checkout ${{ steps.get_branch.outputs.branch }}       
-          git tag -a "${{ github.event.inputs.version }}" -m "Version ${{ github.event.inputs.version }}"
-          git push origin "${{ github.event.inputs.version }}"
+          git fetch --all
+          git checkout ${{ steps.get_branch.outputs.branch }} 
+          git tag -a "ai-assistant-v${{ github.event.inputs.version }}" -m "Version ${{ github.event.inputs.version }}"
+          git push origin "ai-assistant-v${{ github.event.inputs.version }}"
 
       - name: Display success
         run: |
-          echo "Successfully pushed: ${{ vars.DOCKER_REGISTRY }}/${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}"
+          echo "Successfully pushed: ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}"
