@@ -2,7 +2,7 @@ import { ModelMessage, streamText } from 'ai';
 import { IExecutionAnalyzerAgent } from '../types/Agent.js';
 import { UserMetadata } from '../../../types.js';
 import { PROMPT_EXECUTION_ANALYSIS } from '../../../utils/prompts.js';
-import { openai } from '@ai-sdk/openai';
+import { openai, createOpenAI } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
 export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
@@ -12,18 +12,22 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     this.model = model;
   }
 
-  async streamText(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string): Promise<Response> {
+  async streamText(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<Response> {
     const requestLogger = this.logger.child({ userId, sessionId });
     requestLogger.info('Starting', {
       messageCount: userMessages.length,
-      hasOutput: !!metadata.output
+      hasOutput: !!metadata.output,
+      model: model || this.model,
+      usingCustomKey: !!apiKey
     });
 
     const metadataMessages = this.createContextMessages(metadata);
     const messages = [...metadataMessages, ...userMessages];
 
+    const provider = apiKey ? createOpenAI({ apiKey }) : openai;
+
     const result = streamText({
-      model: openai(this.model),
+      model: provider(model || this.model),
       messages,
       system: PROMPT_EXECUTION_ANALYSIS
     });
@@ -33,9 +37,11 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
       tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
     });
 
-    await CacheClient.incrementNumber('EXECUTION_ANALYSIS_INPUT_TOKENS', tokens.inputTokens!);
-    await CacheClient.incrementNumber('EXECUTION_ANALYSIS_OUTPUT_TOKENS', tokens.outputTokens!);
-    await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+    if (!apiKey) {
+      await CacheClient.incrementNumber('EXECUTION_ANALYSIS_INPUT_TOKENS', tokens.inputTokens!);
+      await CacheClient.incrementNumber('EXECUTION_ANALYSIS_OUTPUT_TOKENS', tokens.outputTokens!);
+      await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+    }
 
     return result.toUIMessageStreamResponse();
   }

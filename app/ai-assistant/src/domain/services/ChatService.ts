@@ -39,38 +39,6 @@ export class ChatService {
   async streamChat(userMessages: UIMessage[], userId: string, sessionId: string) {
     const requestLogger = this.logger.child({ userId, sessionId });
 
-    const tokenUsed = await CacheClient.getNumber(userId);
-    requestLogger.debug('Token used', { tokenUsed: tokenUsed, tokenLimit: TOKENS_LIMIT_PER_MONTH });
-    if (Number(tokenUsed) > Number(TOKENS_LIMIT_PER_MONTH)) {
-      requestLogger.error('Token limit exceeded', undefined, {
-        tokenUsed,
-        limit: TOKENS_LIMIT_PER_MONTH
-      });
-      throw new APIError('Token limit exceeded', 429);
-    }
-
-    // Extract user input for logging
-    const lastMessage = userMessages[userMessages.length - 1];
-    const userInput = lastMessage
-      ? lastMessage.parts
-          .filter((part) => part.type === 'text')
-          .map((part) => (part as any).text)
-          .join(' ') || 'No text content'
-      : 'No content';
-
-    requestLogger.info('Processing chat request', {
-      messageCount: userMessages.length,
-      inputLength: userInput.length
-    });
-
-    requestLogger.debug('Full user input', { userInput });
-
-    if (this.isMockMode()) {
-      requestLogger.info('Returning saved mock response');
-      return this.mockAgent?.streamMockResponse();
-    }
-
-    const userModelMessages = convertToModelMessages(userMessages);
     const metadata = this.getMetadata(userMessages);
 
     if (!metadata) {
@@ -78,14 +46,58 @@ export class ChatService {
       return null; // TODO: Handle this case
     }
 
+    let model: string | undefined;
+    let apiKey: string | undefined;
+    if (metadata.useCustomKey) {
+      apiKey = await this.getCustomApiKey(userId);
+      model = metadata.model;
+      if (!apiKey) {
+        requestLogger.warn('Custom key requested but not found for user', { userId });
+        throw new APIError('Custom key not found for user', 401);
+      }
+    } else {
+      const tokenUsed = await CacheClient.getNumber(userId);
+      requestLogger.debug('Token used', { tokenUsed: tokenUsed, tokenLimit: TOKENS_LIMIT_PER_MONTH });
+      if (Number(tokenUsed) > Number(TOKENS_LIMIT_PER_MONTH)) {
+        requestLogger.error('Token limit exceeded', undefined, {
+          tokenUsed,
+          limit: TOKENS_LIMIT_PER_MONTH
+        });
+        throw new APIError('Token limit exceeded', 429);
+      }
+    }
+
+    // Extract user input for logging
+    const lastMessage = userMessages[userMessages.length - 1];
+    const userInput = lastMessage
+      ? lastMessage.parts
+        .filter((part) => part.type === 'text')
+        .map((part) => (part as any).text)
+        .join(' ') || 'No text content'
+      : 'No content';
+
+    requestLogger.info('Processing chat request', {
+      messageCount: userMessages.length,
+      inputLength: userInput.length
+    });
+
+    requestLogger.debug('Full user input', { userInput, metadata, apiKeyFound: Boolean(apiKey) });
+
+    if (this.isMockMode()) {
+      requestLogger.info('Returning saved mock response');
+      return this.mockAgent?.streamMockResponse();
+    }
+
+    const userModelMessages = convertToModelMessages(userMessages);
+
     try {
       switch (metadata.type) {
         case UserMetadataType.CODE_REVIEW:
-          return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata, userId, sessionId);
+          return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata, userId, sessionId, model, apiKey);
         case UserMetadataType.EXECUTION_ANALYSIS:
-          return this.executionAnalyzerAgent.streamText(userModelMessages, metadata, userId, sessionId);
+          return this.executionAnalyzerAgent.streamText(userModelMessages, metadata, userId, sessionId, model, apiKey);
         case UserMetadataType.GENERAL_ASSISTANT:
-          return this.generalAssistantAgent.streamText(userModelMessages, metadata, userId, sessionId);
+          return this.generalAssistantAgent.streamText(userModelMessages, metadata, userId, sessionId, model, apiKey);
         default:
           requestLogger.error('Unknown metadata type', undefined, { type: metadata.type });
           return null;
@@ -127,5 +139,12 @@ export class ChatService {
 
   private isMockMode(): boolean {
     return this.mockMode;
+  }
+
+  private async getCustomApiKey(userId: string): Promise<string | undefined> {
+    // TODO: Implement actual key retrieval from internal system
+    this.logger.info('Retrieving custom API key for user', { userId });
+    // Mock implementation
+    return process.env.OPENAI_API_KEY;
   }
 }

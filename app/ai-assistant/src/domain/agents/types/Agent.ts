@@ -11,11 +11,11 @@ export interface ICodeIntegrationAgent {
 }
 
 export interface IExecutionAnalyzerAgent {
-  streamText(messages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string): Promise<Response>;
+  streamText(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<Response>;
 }
 
 export interface IGeneralAssistantAgent {
-  streamText(messages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string): Promise<Response>;
+  streamText(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<Response>;
 }
 
 export interface IMockAgent {

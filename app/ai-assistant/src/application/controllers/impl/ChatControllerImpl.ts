@@ -27,7 +27,7 @@ export class ChatControllerImpl {
   }
 
   private async startConversation(request: FastifyRequest, reply: FastifyReply) {
-    const body = request.body as { messages: UIMessage[]; userId: string; id: string };
+    const body = request.body as { messages: UIMessage[], userId: string, id: string, model?: string, useCustomKey?: boolean };
     let userId = (request.headers['x-user-id'] as string) || 'unknown';
     if (isLocal) {
       userId = body.userId;

@@ -54,4 +54,6 @@ export interface UserMetadata {
   currentLine: number;
   code: string;
   output: string;
+  model?: string;
+  useCustomKey?: boolean;
 }

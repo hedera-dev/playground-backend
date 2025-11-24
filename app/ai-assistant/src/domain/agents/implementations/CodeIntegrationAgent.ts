@@ -1,5 +1,4 @@
-import { z } from 'zod';
-import { openai } from '@ai-sdk/openai';
+import { openai, createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { ICodeIntegrationAgent } from '../types/index.js';
 import { ApplyCodeChangesSchema, ProposeCodeChange } from '../tools/CodeTools.js';
@@ -16,7 +15,7 @@ export class CodeIntegrationAgent implements ICodeIntegrationAgent {
     this.logger = createLogger(undefined, 'CodeIntegrationAgent');
   }
 
-  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string, sessionId: string): Promise<any[]> {
+  async generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<any[]> {
     const requestLogger = this.logger.child({ userId, sessionId });
     if (!code || !proposedChanges.changes || proposedChanges.changes.length === 0) {
       return [];
@@ -37,8 +36,10 @@ Changes:<changes>${changes}</changes>
 `;
 
     try {
+      const provider = apiKey ? createOpenAI({ apiKey }) : openai;
+
       const result = await generateObject({
-        model: openai(this.model),
+        model: provider(model || this.model),
         prompt: prompt,
         system: PROMPT_CODE_INTEGRATION,
         schema: ApplyCodeChangesSchema,
@@ -50,9 +51,11 @@ Changes:<changes>${changes}</changes>
         tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
       });
 
-      await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_INPUT_TOKENS', tokens.inputTokens!);
-      await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_OUTPUT_TOKENS', tokens.outputTokens!);
-      await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+      if (!apiKey) {
+        await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_INPUT_TOKENS', tokens.inputTokens!);
+        await CacheClient.incrementNumber('CODE_TOOL_INTEGRATION_OUTPUT_TOKENS', tokens.outputTokens!);
+        await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+      }
 
       requestLogger.debug('Code changes generated', {
         codeChanges: result?.object?.appliedChanges,

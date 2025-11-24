@@ -28,7 +28,7 @@ export const ApplyCodeChangesSchema = z.object({
 
 export type ApplyCodeChanges = z.infer<typeof ApplyCodeChangesSchema>;
 
-export const proposeCodeTool = (applyCodeAgent: ICodeIntegrationAgent, code: string, userId: string, sessionId: string) =>
+export const proposeCodeTool = (applyCodeAgent: ICodeIntegrationAgent, code: string, userId: string, sessionId: string, model?: string, apiKey?: string) =>
   tool({
     description: 'Propose code changes with context - automatically determines exact locations using second agent',
     inputSchema: ProposeCodeChangeSchema,
@@ -41,7 +41,7 @@ export const proposeCodeTool = (applyCodeAgent: ICodeIntegrationAgent, code: str
       }
 
       try {
-        const appliedChanges = await applyCodeAgent.generateCodeChanges(args, code, userId, sessionId);
+        const appliedChanges = await applyCodeAgent.generateCodeChanges(args, code, userId, sessionId, model, apiKey);
 
         return {
           proposedChanges: args.changes,

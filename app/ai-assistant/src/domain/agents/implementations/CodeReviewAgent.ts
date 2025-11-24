@@ -1,4 +1,4 @@
-import { openai } from '@ai-sdk/openai';
+import { openai, createOpenAI } from '@ai-sdk/openai';
 import { ModelMessage, streamText } from 'ai';
 import { ICodeReviewAgent } from '../types/index.js';
 import { proposeCodeTool } from '../tools/CodeTools.js';
@@ -18,25 +18,29 @@ export class CodeReviewAgent implements ICodeReviewAgent {
     this.applyCodeAgent = new CodeIntegrationAgent(integrationModel);
   }
 
-  async streamCodeProposal(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string): Promise<Response> {
+  async streamCodeProposal(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<Response> {
     const requestLogger = this.logger.child({ userId, sessionId });
 
     requestLogger.info('Starting', {
       messageCount: userMessages.length,
       hasCode: !!metadata.code,
-      language: metadata.language
+      language: metadata.language,
+      model: model || this.model,
+      usingCustomKey: !!apiKey
     });
 
     const metadataMessages = this.createContextMessages(metadata);
     const messages = [...metadataMessages, ...userMessages];
 
     try {
+      const provider = apiKey ? createOpenAI({ apiKey }) : openai;
+
       const result = streamText({
-        model: openai(this.model),
+        model: provider(model || this.model),
         messages,
         system: PROPMT_CODE_REVIEW_TWO_AGENT,
         tools: {
-          proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, userId, sessionId)
+          proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, userId, sessionId, model, apiKey)
         }
       });
 
@@ -44,11 +48,15 @@ export class CodeReviewAgent implements ICodeReviewAgent {
 
       requestLogger.info('Token usage', {
         tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
+        isCustomKey: Boolean(apiKey),
+        model: !!apiKey ? model : undefined
       });
 
-      await CacheClient.incrementNumber('CODE_REVIEW_INPUT_TOKENS', tokens.inputTokens!);
-      await CacheClient.incrementNumber('CODE_REVIEW_OUTPUT_TOKENS', tokens.outputTokens!);
-      await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+      if (!apiKey) {
+        await CacheClient.incrementNumber('CODE_REVIEW_INPUT_TOKENS', tokens.inputTokens!);
+        await CacheClient.incrementNumber('CODE_REVIEW_OUTPUT_TOKENS', tokens.outputTokens!);
+        await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+      }
 
       return result.toUIMessageStreamResponse();
     } catch (error) {
