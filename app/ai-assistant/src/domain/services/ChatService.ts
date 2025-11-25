@@ -1,10 +1,12 @@
 import { convertToModelMessages, UIMessage } from 'ai';
 import { createLogger, AppLogger } from '../../utils/logger.js';
-import { UserMetadata, UserMetadataType } from '../../types.js';
+import { UserMetadata, UserMetadataType, ExecutionContext } from '../../types.js';
 import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
 import { MockAgent } from '../agents/implementations/MockAgent.js';
 import { CacheClient } from '../../infrastructure/persistence/RedisConnector.js';
 import { APIError } from '../../utils/errors.js';
+import { UserAIKeyService } from './UserAIKeyService.js';
+import { UserAIKeyRepositoryImpl } from '../../infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
 
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_688ceeab314c8191a557a849b28cf815';
 const TOKENS_LIMIT_PER_MONTH = Number(process.env.TOKENS_LIMIT_PER_MONTH) || 100000;
@@ -21,6 +23,7 @@ export class ChatService {
   private generalAssistantAgent: GeneralAssistantAgent;
   private executionAnalyzerAgent: ExecutionAnalyzerAgent;
   private mockAgent: IMockAgent | null = null;
+  private userAIKeyService: UserAIKeyService;
 
   constructor() {
     this.mockMode = process.env.ENABLE_MOCK_MODE === 'true';
@@ -29,6 +32,7 @@ export class ChatService {
     this.codeReviewAgent = new CodeReviewAgent(CODE_REVIEW_MODEL, CODE_INTEGRATION_MODEL);
     this.generalAssistantAgent = new GeneralAssistantAgent(GENERAL_ASSISTANT_MODEL);
     this.executionAnalyzerAgent = new ExecutionAnalyzerAgent(EXECUTION_ANALYZER_MODEL);
+    this.userAIKeyService = new UserAIKeyService(new UserAIKeyRepositoryImpl());
 
     if (this.mockMode) {
       this.mockAgent = new MockAgent();
@@ -71,9 +75,9 @@ export class ChatService {
     const lastMessage = userMessages[userMessages.length - 1];
     const userInput = lastMessage
       ? lastMessage.parts
-        .filter((part) => part.type === 'text')
-        .map((part) => (part as any).text)
-        .join(' ') || 'No text content'
+          .filter((part) => part.type === 'text')
+          .map((part) => (part as any).text)
+          .join(' ') || 'No text content'
       : 'No content';
 
     requestLogger.info('Processing chat request', {
@@ -89,15 +93,22 @@ export class ChatService {
     }
 
     const userModelMessages = convertToModelMessages(userMessages);
+    // Create execution context
+    const context: ExecutionContext = {
+      userId,
+      sessionId,
+      model,
+      userApiKey: apiKey
+    };
 
     try {
       switch (metadata.type) {
         case UserMetadataType.CODE_REVIEW:
-          return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata, userId, sessionId, model, apiKey);
+          return this.codeReviewAgent.streamCodeProposal(userModelMessages, metadata, context);
         case UserMetadataType.EXECUTION_ANALYSIS:
-          return this.executionAnalyzerAgent.streamText(userModelMessages, metadata, userId, sessionId, model, apiKey);
+          return this.executionAnalyzerAgent.streamText(userModelMessages, metadata, context);
         case UserMetadataType.GENERAL_ASSISTANT:
-          return this.generalAssistantAgent.streamText(userModelMessages, metadata, userId, sessionId, model, apiKey);
+          return this.generalAssistantAgent.streamText(userModelMessages, metadata, context);
         default:
           requestLogger.error('Unknown metadata type', undefined, { type: metadata.type });
           return null;
@@ -142,9 +153,18 @@ export class ChatService {
   }
 
   private async getCustomApiKey(userId: string): Promise<string | undefined> {
-    // TODO: Implement actual key retrieval from internal system
-    this.logger.info('Retrieving custom API key for user', { userId });
-    // Mock implementation
-    return process.env.OPENAI_API_KEY;
+    let userApiKey: string | undefined;
+    try {
+      const hasKey = await this.userAIKeyService.hasKey(userId);
+      if (hasKey) {
+        const keyData = await this.userAIKeyService.retrieveKey(userId);
+        userApiKey = keyData.apiKey;
+        this.logger.info('Using user BYOK API key');
+      }
+    } catch (error) {
+      // If key retrieval fails, continue with system key
+      this.logger.warn('Failed to retrieve user API key, using system key');
+    }
+    return userApiKey;
   }
 }

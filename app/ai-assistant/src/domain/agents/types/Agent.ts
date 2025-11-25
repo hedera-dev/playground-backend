@@ -1,21 +1,21 @@
 import { ModelMessage, UIMessage } from 'ai';
 import { ProposeCodeChange } from '../tools/CodeTools.js';
-import { UserMetadata } from '../../../types.js';
+import { UserMetadata, ExecutionContext } from '../../../types.js';
 
 export interface ICodeReviewAgent {
-  streamCodeProposal(messages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string): Promise<Response>;
+  streamCodeProposal(messages: ModelMessage[], metadata: UserMetadata, context: ExecutionContext): Promise<Response>;
 }
 
 export interface ICodeIntegrationAgent {
-  generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, userId: string, sessionId: string): Promise<any>;
+  generateCodeChanges(proposedChanges: ProposeCodeChange, code: string, context: ExecutionContext): Promise<any>;
 }
 
 export interface IExecutionAnalyzerAgent {
-  streamText(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<Response>;
+  streamText(messages: ModelMessage[], metadata: UserMetadata, context: ExecutionContext): Promise<Response>;
 }
 
 export interface IGeneralAssistantAgent {
-  streamText(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<Response>;
+  streamText(messages: ModelMessage[], metadata: UserMetadata, context: ExecutionContext): Promise<Response>;
 }
 
 export interface IMockAgent {

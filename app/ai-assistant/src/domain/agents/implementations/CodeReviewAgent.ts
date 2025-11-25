@@ -3,7 +3,7 @@ import { ModelMessage, streamText } from 'ai';
 import { ICodeReviewAgent } from '../types/index.js';
 import { proposeCodeTool } from '../tools/CodeTools.js';
 import { PROPMT_CODE_REVIEW_TWO_AGENT } from '../../../utils/prompts.js';
-import { UserMetadata } from '../../../types.js';
+import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { CodeIntegrationAgent } from './CodeIntegrationAgent.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -18,29 +18,34 @@ export class CodeReviewAgent implements ICodeReviewAgent {
     this.applyCodeAgent = new CodeIntegrationAgent(integrationModel);
   }
 
-  async streamCodeProposal(userMessages: ModelMessage[], metadata: UserMetadata, userId: string, sessionId: string, model?: string, apiKey?: string): Promise<Response> {
-    const requestLogger = this.logger.child({ userId, sessionId });
+  async streamCodeProposal(
+    userMessages: ModelMessage[],
+    metadata: UserMetadata,
+    context: ExecutionContext
+  ): Promise<Response> {
+    const requestLogger = this.logger.child({ userId: context.userId, sessionId: context.sessionId });
 
     requestLogger.info('Starting', {
       messageCount: userMessages.length,
       hasCode: !!metadata.code,
       language: metadata.language,
-      model: model || this.model,
-      usingCustomKey: !!apiKey
+      model: context.model || this.model,
+      usingCustomKey: Boolean(context.userApiKey)
     });
 
     const metadataMessages = this.createContextMessages(metadata);
     const messages = [...metadataMessages, ...userMessages];
 
     try {
-      const provider = apiKey ? createOpenAI({ apiKey }) : openai;
+      // Use user's API key if provided (BYOK), otherwise use system key
+      const openaiProvider = context.userApiKey ? createOpenAI({ apiKey: context.userApiKey }) : openai;
 
       const result = streamText({
-        model: provider(model || this.model),
+        model: openaiProvider(context.model || this.model),
         messages,
         system: PROPMT_CODE_REVIEW_TWO_AGENT,
         tools: {
-          proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, userId, sessionId, model, apiKey)
+          proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, context)
         }
       });
 
@@ -48,14 +53,14 @@ export class CodeReviewAgent implements ICodeReviewAgent {
 
       requestLogger.info('Token usage', {
         tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
-        isCustomKey: Boolean(apiKey),
-        model: !!apiKey ? model : undefined
+        isCustomKey: Boolean(context.userApiKey),
+        model: Boolean(context.userApiKey) ? context.model : undefined
       });
 
-      if (!apiKey) {
+      if (!context.userApiKey) {
         await CacheClient.incrementNumber('CODE_REVIEW_INPUT_TOKENS', tokens.inputTokens!);
         await CacheClient.incrementNumber('CODE_REVIEW_OUTPUT_TOKENS', tokens.outputTokens!);
-        await CacheClient.incrementNumberUntilEndOfMonth(userId, tokens.totalTokens!);
+        await CacheClient.incrementNumberUntilEndOfMonth(context.userId, tokens.totalTokens!);
       }
 
       return result.toUIMessageStreamResponse();
