@@ -11,9 +11,9 @@ fi
 
 source environment
 
-bin/npm install -g @hashgraph/sdk@2.64.5
+bin/npm install -g @hiero-ledger/sdk@2.75.0
 
 if [ $? -ne 0 ]; then
-  echo "Error: Cannot install @hashgraph/sdk"
+  echo "Error: Cannot install @hiero-ledger/sdk"
   exit 1
 fi
