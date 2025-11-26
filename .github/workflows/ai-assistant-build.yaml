@@ -28,11 +28,13 @@ jobs:
       contents: "read"
       id-token: "write"
     env:
-      DOCKER_IMAGE_TAG: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
+      DOCKER_IMAGE_PATH: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
+      TEMP_IMAGE_PATH: /tmp/ai-assistant_${{ github.event.inputs.version }}.tar
     outputs:
       develop_image_tag: ${{ steps.set-tag.outputs.develop_image_tag }}
     steps:
-      - uses: "google-github-actions/auth@v2"
+      - name: Configure Google Cloud Auth
+        uses: "google-github-actions/auth@v2"
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDP }}
@@ -52,23 +54,23 @@ jobs:
       - name: Pull the develop Docker image
         if: ${{ github.ref == 'refs/heads/master' }}
         run: |
-          docker pull ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
+          docker pull ${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
 
-      - id: set-tag
-        name: Set docker image tag output
-        run: echo "develop_image_tag=${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+      - name: Set docker image tag output
+        id: set-tag
+        run: echo "develop_image_tag=${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
 
       - name: Save Docker image as tar
         if: ${{ github.ref == 'refs/heads/master' }}
         run: |
-          docker save -o /tmp/ai-assistant_${{ github.event.inputs.version }}.tar ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
+          docker save -o ${{ env.TEMP_IMAGE_PATH }} ${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
 
       - name: Upload artifact
         if: ${{ github.ref == 'refs/heads/master' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.version }}
-          path: /tmp/ai-assistant_${{ github.event.inputs.version }}.tar
+          path: ${{ env.TEMP_IMAGE_PATH }}
           retention-days: 1
   build_and_push:
     name: Build and Push - ${{ github.event.inputs.version }}
@@ -77,7 +79,9 @@ jobs:
     environment: ${{
       github.ref == "refs/heads/master" && "production" || "develop" }}
     env:
-      DOCKER_IMAGE_TAG: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
+      DOCKER_IMAGE_PATH: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
+      TEMP_IMAGE_PATH: /tmp/ai-assistant_${{ github.event.inputs.version }}.tar
+      DOCKERFILE_PATH: ./app/ai-assistant/.
     permissions:
       contents: "read"
       id-token: "write"
@@ -93,7 +97,7 @@ jobs:
       - name: Load image
         if: ${{ github.ref == 'refs/heads/master' }}
         run: |
-          docker load --input /tmp/ai-assistant_${{ github.event.inputs.version }}.tar
+          docker load --input ${{ env.TEMP_IMAGE_PATH }}
           docker image ls -a
 
       - name: Get branch name
@@ -131,16 +135,16 @@ jobs:
       - name: Build or Tag Docker image
         run: |
           if [ "${{ github.ref }}" == "refs/heads/master" ]; then
-            echo "Tagging image: ${{ needs.build_on_main.outputs.develop_image_tag }} - to - ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}"
-            docker tag ${{ needs.build_on_main.outputs.develop_image_tag }} ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
+            echo "Tagging image: ${{ needs.build_on_main.outputs.develop_image_tag }} - to - ${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}"
+            docker tag ${{ needs.build_on_main.outputs.develop_image_tag }} ${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
           else
             echo "Building image for develop branch"
-            docker build --platform linux/amd64 --build-arg READ_PACKAGES_TOKEN=${{ secrets.REPOSITORY_PERMISSIONS_TOKEN }} -t ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }} ./app/ai-assistant/.
+            docker build --platform linux/amd64 --build-arg READ_PACKAGES_TOKEN=${{ secrets.REPOSITORY_PERMISSIONS_TOKEN }} -t ${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} ${{ env.DOCKERFILE_PATH}}
           fi
 
       - name: Push Docker image to Google Artifact Registry
         run: |
-          docker push ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}
+          docker push ${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
 
       - name: Create and push a new git tag
         if: ${{ github.event.inputs.set_tag == 'true' && github.event.inputs.version != 'latest' && github.ref != 'refs/heads/master' }}
@@ -154,4 +158,4 @@ jobs:
 
       - name: Display success
         run: |
-          echo "Successfully pushed: ${{ env.DOCKER_IMAGE_TAG }}:${{ github.event.inputs.version }}"
+          echo "Successfully pushed: ${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}"
