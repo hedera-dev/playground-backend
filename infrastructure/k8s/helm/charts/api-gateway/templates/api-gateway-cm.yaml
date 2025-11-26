@@ -9,11 +9,6 @@ data:
   400.json: | 
     HTTP/1.1 400 Bad Request
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
     
     {
         "message": "Bad Request",
@@ -22,11 +17,6 @@ data:
   403.json: |
     HTTP/1.1 403 Forbidden
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
 
     {
         "message": "Forbidden Access",
@@ -35,11 +25,6 @@ data:
   408.json: |
     HTTP/1.1 408 Request Timeout
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
     
     {
         "message": "Request Timeout",
@@ -48,12 +33,6 @@ data:
   429.json: |
     HTTP/1.1 429 Too Many Requests
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
-    Retry-After: 60
     
     {
         "message": "Too Many Requests",
@@ -62,11 +41,6 @@ data:
   500.json: |
     HTTP/1.1 500 Internal Server Error
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
     
     {
         "message": "Internal Server Error",
@@ -75,11 +49,6 @@ data:
   502.json: |
     HTTP/1.1 502 Bad Gateway
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
     
     {
         "message": "Bad Gateway",
@@ -88,11 +57,6 @@ data:
   503.json: |
     HTTP/1.1 503 Service Unavailable
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
     
     {
         "message": "Service Unavailable",
@@ -101,11 +65,6 @@ data:
   504.json: |
     HTTP/1.1 504 Gateway Timeout
     Content-Type: application/json
-    Access-Control-Allow-Origin: *
-    Access-Control-Allow-Headers: *
-    Access-Control-Expose-Headers: x-total, X-Total, x-limit, X-Limit
-    Access-Control-Max-Age: 3628800
-    Access-Control-Allow-Methods: GET, DELETE, OPTIONS, POST, PUT, PATCH
     
     {
         "message": "Gateway Timeout",
@@ -154,12 +113,21 @@ data:
         # Capture real client IP with priority
         http-request set-var(txn.client_ip) req.hdr_ip(x-forwarded-for,1)
         
+        # Capture Origin header for CORS validation
+        http-request set-var(txn.origin) req.hdr(Origin)
+
+        # CORS: Define allowed origins
+        acl origin_allowed var(txn.origin) -m str http://localhost:5173 https://dev.portal.hedera.com
+        
         # Define ACLs first
         acl is_health_check path_beg /api/playground/assistant/health
         acl is_options_request method OPTIONS
         
-        # Handle CORS preflight requests
-        http-request return status 200 hdr Access-Control-Allow-Origin "*" hdr Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" hdr Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID" hdr Access-Control-Allow-Credentials "true" hdr Access-Control-Max-Age "3628800" if is_options_request
+        # Handle CORS preflight requests (OPTIONS) - MUST return 200 OK
+        http-request return status 200 hdr Access-Control-Allow-Origin "%[var(txn.origin)]" hdr Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" hdr Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control" hdr Access-Control-Allow-Credentials "true" hdr Access-Control-Max-Age "3628800" if is_options_request origin_allowed
+        
+        # Deny OPTIONS requests from non-allowed origins
+        http-request deny deny_status 403 if is_options_request !origin_allowed
         
         # IP-based rate limiting (using separate table)
         http-request track-sc1 var(txn.client_ip) table ip_rate_limit
@@ -194,11 +162,16 @@ data:
         # http-response add-header X-RateLimit-Window "60"
         # http-response add-header X-RateLimit-Remaining %[sc_http_req_rate(0),sub(6)] if { var(txn.spoe.auth_ok) -m bool true }
 
-        http-response add-header Access-Control-Allow-Origin "*"
-        http-response add-header Access-Control-Allow-Credentials "true"
-        http-response add-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID"
-        http-response add-header Access-Control-Max-Age 3628800
-        http-response add-header Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH"
+        # CORS: Set dynamic origin only if allowed (for all responses including errors)
+        http-response set-header Access-Control-Allow-Origin "%[var(txn.origin)]" if origin_allowed
+        http-response set-header Access-Control-Allow-Credentials "true" if origin_allowed
+        http-response set-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control" if origin_allowed
+        http-response set-header Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" if origin_allowed
+        
+        http-after-response set-header Access-Control-Allow-Origin "%[var(txn.origin)]" if origin_allowed
+        http-after-response set-header Access-Control-Allow-Credentials "true" if origin_allowed
+        http-after-response set-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control" if origin_allowed
+        http-after-response set-header Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" if origin_allowed
 
         default_backend assistant
 
