@@ -4,6 +4,9 @@ metadata:
   name: "{{ .Release.Name }}-api-gateway-bc"
   namespace: default
 spec:
+  timeoutSec: 120
+  connectionDraining:
+    drainingTimeoutSec: 60
   healthCheck:
     type: HTTP
     requestPath: /api/playground/assistant/health
