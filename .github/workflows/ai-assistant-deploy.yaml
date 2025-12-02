@@ -1,0 +1,85 @@
+name: Deploy AI Assistant
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Docker image tag"
+        required: true
+        default: "latest"
+
+jobs:
+  install-tools:
+    uses: ./.github/workflows/infra-install.yaml
+    secrets: inherit
+
+  deploy:
+    needs: install-tools
+    name: Deploy AI Assistant - ${{ github.event.inputs.version }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}
+    permissions:
+      contents: "read"
+      id-token: "write"
+    env:
+      CHART_DIR: infrastructure/k8s/helm/charts/ai-assistant
+      VALUES_FILE: infrastructure/k8s/helm/charts/ai-assistant/values.yaml
+      DOCKER_IMAGE_PATH: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
+      RELEASE_NAME: ${{ github.ref == 'refs/heads/master' && 'ai-assistant-production' || 'ai-assistant-development' }}
+      K8S_NAMESPACE: ai-assistant
+      GKE_CLUSTER_NAME: k8s-hedera-playground
+      GKE_LOCATION: us-central1
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure Google Cloud Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDP }}
+          service_account: ${{ vars.GCP_IDP_SERVICE_ACCOUNT_ARTIFACT_REGISTRY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: ">= 363.0.0"
+
+      - name: Fetch GKE credentials
+        run: |
+          gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" \
+            --region "${GKE_LOCATION}" \
+            --project "${{ vars.GCP_PROJECT_ID }}"
+
+      - name: Ensure namespace exists
+        run: |
+          kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Prepare Helm values
+        env:
+          IMAGE_TAG: ${{ github.event.inputs.version }}
+        run: |
+          set -euo pipefail
+          yq eval ".image.repository = \"${DOCKER_IMAGE_PATH}\"" -i "${VALUES_FILE}"
+          yq eval ".image.tag = \"${IMAGE_TAG}\"" -i "${VALUES_FILE}"
+          yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i "${VALUES_FILE}"
+          yq eval ".env.redis.password = \"${{ secrets.AI_ASSISTANT_REDIS_PASSWORD }}\"" -i "${VALUES_FILE}"
+
+      - name: Deploy chart
+        run: |
+          helm upgrade \
+            --install "${RELEASE_NAME}" "${CHART_DIR}" \
+            --namespace "${K8S_NAMESPACE}" \
+            --create-namespace \
+            --wait \
+            --timeout 15m0s
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/"${RELEASE_NAME}"-ai-assistant-dpl \
+            --namespace "${K8S_NAMESPACE}" \
+            --timeout=600s
+
+      - name: Show pods
+        run: |
+          kubectl get pods -n "${K8S_NAMESPACE}"
