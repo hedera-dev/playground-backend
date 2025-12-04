@@ -3,6 +3,7 @@ resource "google_compute_region_instance_group_manager" "rig-gw" {
   region              = var.region
   base_instance_name  = "vm-gw-${var.environment_id}"
   version {
+    name              = "0-1753341540103"
     instance_template = google_compute_region_instance_template.rit-gw.id
   }
 

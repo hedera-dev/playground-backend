@@ -72,7 +72,8 @@ resource "google_compute_firewall" "allow_egress_internal" {
   direction = "EGRESS"
   priority  = 1000
 
-  source_ranges = ["10.1.0.0/16"]
+  source_ranges       = ["10.1.0.0/16"]
+  destination_ranges  = ["10.1.0.0/16"]
   source_tags             = null
   source_service_accounts = null
   target_tags             = null
