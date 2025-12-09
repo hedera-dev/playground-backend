@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# Copy build cache to writable location
+mkdir -p .cache
+cp -r /pkgs_manager/packages/go/1.25.4/build-cache/* .cache/ 2>/dev/null || true
+
+# Copy go.mod and go.sum
+cp /pkgs_manager/packages/go/1.25.4/go.mod .
+cp /pkgs_manager/packages/go/1.25.4/go.sum .
+
+# Prepare user code
+mv $1 $1.go
+filename=$1.go
+shift
+
+# Run with Go (compilation + execution)
+GOROOT=/pkgs_manager/packages/go/1.25.4/go \
+GOMODCACHE=/pkgs_manager/packages/go/1.25.4/gopath/pkg/mod \
+GOPATH=/pkgs_manager/packages/go/1.25.4/gopath \
+GOCACHE=$PWD/.cache \
+GOPROXY=off \
+GOSUMDB=off \
+/pkgs_manager/packages/go/1.25.4/go/bin/go run $filename "$@"

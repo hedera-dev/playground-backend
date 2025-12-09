@@ -1,0 +1,4 @@
+export PATH=$PWD/go/bin:$PATH
+export GOPATH=$PWD/gopath
+export GO111MODULE=on
+export GOMOD=$PWD/go.mod
