@@ -1,17 +1,17 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 // HTTP Chat request types
 export const ChatRequestSchema = z.object({
-  message: z.string().min(1, "Message cannot be empty"),
+  message: z.string().min(1, 'Message cannot be empty'),
   conversationId: z.string().optional().nullable(),
-  messageId: z.string().optional().nullable(),
+  messageId: z.string().optional().nullable()
 });
 
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
 // Conversation history type
 export interface ConversationMessage {
-  role: "user" | "assistant";
+  role: 'user' | 'assistant';
   content: string;
   timestamp?: string;
 }
@@ -26,7 +26,7 @@ export interface ChatSession {
 
 // Streaming response events (for SSE)
 export interface StreamingEvent {
-  type: "start" | "delta" | "complete" | "error";
+  type: 'start' | 'delta' | 'complete' | 'error';
   content?: string;
   messageId?: string;
   conversationId?: string;
@@ -43,9 +43,9 @@ export interface StreamingEvent {
 }
 
 export enum UserMetadataType {
-  CODE_REVIEW = "code-review",
-  EXECUTION_ANALYSIS = "execution-analysis",
-  GENERAL_ASSISTANT = "general-assistant",
+  CODE_REVIEW = 'code-review',
+  EXECUTION_ANALYSIS = 'execution-analysis',
+  GENERAL_ASSISTANT = 'general-assistant'
 }
 
 export interface UserMetadata {
@@ -54,4 +54,17 @@ export interface UserMetadata {
   currentLine: number;
   code: string;
   output: string;
+  model?: string;
+  useCustomKey?: boolean;
+}
+
+/**
+ * Execution context that encapsulates user session and authentication information
+ * Used across all agents to maintain cleaner method signatures
+ */
+export interface ExecutionContext {
+  userId: string;
+  sessionId: string;
+  model?: string;
+  userApiKey?: string;
 }

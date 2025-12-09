@@ -1,7 +1,7 @@
 project_id: "playground-develop-441415"
 region: "us-central1"
 zone: "us-central1-a"
-environment_id: 'poc'
+environment_id: "poc"
 ssh_user: "deploy"
 ssh_keys_file: # TODO: set ssh_keys_file
 bucket_templates: "playground-templates-dev"

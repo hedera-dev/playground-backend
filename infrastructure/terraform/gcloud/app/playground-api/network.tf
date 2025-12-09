@@ -72,7 +72,8 @@ resource "google_compute_firewall" "allow_egress_internal" {
   direction = "EGRESS"
   priority  = 1000
 
-  source_ranges = ["10.1.0.0/16"]
+  source_ranges       = ["10.1.0.0/16"]
+  destination_ranges  = ["10.1.0.0/16"]
   source_tags             = null
   source_service_accounts = null
   target_tags             = null
@@ -114,7 +115,7 @@ resource "google_compute_firewall" "allow_egress_hedera_testnet" {
     "3.212.6.13/32", "35.245.27.193/32", "52.20.18.86/32", 
     "34.83.112.116/32", "54.70.192.33/32", "34.94.160.4/32", 
     "54.176.199.109/32", "34.106.102.218/32", "35.155.49.147/32",
-    "34.133.197.230/32", "52.14.252.207/32"
+    "34.133.197.230/32", "52.14.252.207/32", "35.186.230.203/32"
   ]
 
   allow {
