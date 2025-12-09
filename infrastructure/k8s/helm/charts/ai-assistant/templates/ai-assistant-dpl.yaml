@@ -17,7 +17,7 @@ spec:
         app.kubernetes.io/name: {{ .Chart.Name }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
-      serviceAccountName: default
+      serviceAccountName: {{ .Values.serviceAccount }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -55,6 +55,29 @@ spec:
               value: "rediss://{{ .Values.env.redis.user }}:{{ .Values.env.redis.password }}@{{ .Values.env.redis.host }}:{{ .Values.env.redis.port }}/{{ .Values.env.redis.database }}"
             - name: TOKENS_LIMIT_PER_MONTH
               value: {{ .Values.env.TOKENS_LIMIT_PER_MONTH | quote }}
+            - name: PG_HOST
+              value: {{ .Values.env.PG_HOST | quote }}
+            - name: PG_PORT
+              value: {{ .Values.env.PG_PORT | quote }}
+            - name: PG_DATABASE
+              value: {{ .Values.env.PG_DATABASE | quote }}
+            - name: PG_SSL
+              value: {{ .Values.env.PG_SSL | quote }}
+            - name: PG_USER
+              value: {{ .Values.env.PG_USER | quote }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: psql_pwd
+                  name: "{{ .Release.Name }}-ai-assistant-secrets"
+            - name: GCP_PROJECT_ID
+              value: {{ .Values.env.GCP_PROJECT_ID | quote }}
+            - name: GCP_KMS_LOCATION
+              value: {{ .Values.env.GCP_KMS_LOCATION | quote }}
+            - name: GCP_KMS_KEYRING
+              value: {{ .Values.env.GCP_KMS_KEYRING | quote }}
+            - name: GCP_KMS_CRYPTO_KEY
+              value: {{ .Values.env.GCP_KMS_CRYPTO_KEY | quote }}
           {{- if .Values.healthCheck.enable }}
           readinessProbe:
             httpGet:

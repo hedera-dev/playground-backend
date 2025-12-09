@@ -31,3 +31,10 @@ resource "google_service_account_iam_member" "playground_wip_binding" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.playground_wip.name}/attribute.repository/${local.deployment["github_repository"]}"
 }
+
+resource "google_service_account_iam_member" "playground_gke_workload_identity_binding" {
+  depends_on         = [google_service_account.playground_service_account]
+  service_account_id = google_service_account.playground_service_account.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${local.deployment["project_id"]}.svc.id.goog[default/ai-assistant-sa]"
+}
