@@ -1,10 +1,11 @@
-import { ModelMessage, streamText } from 'ai';
+import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { IExecutionAnalyzerAgent } from '../types/Agent.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { PROMPT_EXECUTION_ANALYSIS } from '../../../utils/prompts.js';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
+import { searchHederaTool } from '../tools/HederaTools.js';
 export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
   private model: string;
   private logger = createLogger(undefined, 'ExecutionAnalyzerAgent');
@@ -30,7 +31,12 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     const result = streamText({
       model: openaiProvider(context.model || this.model),
       messages,
-      system: PROMPT_EXECUTION_ANALYSIS
+      system: PROMPT_EXECUTION_ANALYSIS,
+      tools: {
+        searchHedera: searchHederaTool()
+      },
+      toolChoice: 'auto',
+      stopWhen: stepCountIs(2),
     });
 
     const tokens = await result.usage;

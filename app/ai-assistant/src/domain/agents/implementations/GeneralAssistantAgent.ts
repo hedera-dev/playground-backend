@@ -1,10 +1,11 @@
-import { ModelMessage, streamText } from 'ai';
+import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { IGeneralAssistantAgent } from '../types/Agent.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { PROMPT_GENERAL } from '../../../utils/prompts.js';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
+import { searchHederaTool } from '../tools/HederaTools.js';
 
 export class GeneralAssistantAgent implements IGeneralAssistantAgent {
   private model: string;
@@ -32,8 +33,14 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
     const result = streamText({
       model: openaiProvider(context.model || this.model),
       messages,
-      system: PROMPT_GENERAL
+      system: PROMPT_GENERAL,
+      tools: {
+        searchHedera: searchHederaTool()
+      },
+      toolChoice: 'auto',
+      stopWhen: stepCountIs(2),
     });
+
     const tokens = await result.usage;
     requestLogger.info('Token usage', {
       tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`
@@ -44,6 +51,7 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
       await CacheClient.incrementNumber('GENERAL_ASSISTANT_OUTPUT_TOKENS', tokens.outputTokens!);
       await CacheClient.incrementNumberUntilEndOfMonth(context.userId, tokens.totalTokens!);
     }
+
     return result.toUIMessageStreamResponse();
   }
 
