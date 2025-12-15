@@ -13,11 +13,6 @@ on:
         required: false
         default: false
         type: boolean
-      branch:
-        description: "Branch to build from"
-        required: false
-        default: ""
-        type: string
 
 jobs:
   build_on_main:
@@ -99,22 +94,13 @@ jobs:
           docker load --input ${{ env.TEMP_IMAGE_PATH }}
           docker image ls -a
 
-      - name: Get branch name
-        id: get_branch
-        run: |
-          if [ -n "${{ github.event.inputs.branch }}" ]; then
-            echo "branch=${{ github.event.inputs.branch }}" >> $GITHUB_OUTPUT
-          else
-            echo "branch=${GITHUB_REF#refs/heads/}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Checkout code
         if: ${{ github.ref != 'refs/heads/master' }}
         uses: actions/checkout@v4
         with:
           repository: "hedera-dev/playground-backend"
           token: ${{ secrets.REPOSITORY_PERMISSIONS_TOKEN }}
-          ref: ${{ github.event.inputs.branch != '' && github.event.inputs.branch || github.ref }}
+          ref: ${{ github.ref }}
 
       - name: Configure Google Cloud Auth
         uses: "google-github-actions/auth@v2"
@@ -151,7 +137,7 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git fetch --all
-          git checkout ${{ steps.get_branch.outputs.branch }} 
+          git checkout "${GITHUB_REF_NAME}"
           git tag -a "ai-assistant-v${{ github.event.inputs.version }}" -m "Version ${{ github.event.inputs.version }}"
           git push origin "ai-assistant-v${{ github.event.inputs.version }}"
 
