@@ -9,30 +9,24 @@ on:
         default: "latest"
 
 jobs:
-  install-tools:
-    uses: ./.github/workflows/infra-install.yaml
-    secrets: inherit
-
   deploy:
-    needs: install-tools
-    name: Deploy AI Assistant - ${{ github.event.inputs.version }}
+    name: Deploy - ${{ github.event.inputs.version }}
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}
     permissions:
       contents: "read"
       id-token: "write"
     env:
+      HELM_RELEASE_SUFIX: ai-assistant
+      CHART_NAME: ai-assistant
       CHART_DIR: infrastructure/k8s/helm/charts/ai-assistant
-      VALUES_FILE: infrastructure/k8s/helm/charts/ai-assistant/values.yaml
-      DOCKER_IMAGE_PATH: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
-      RELEASE_NAME: ${{ github.ref == 'refs/heads/master' && 'ai-assistant-production' || 'ai-assistant-development' }}
-      K8S_NAMESPACE: ai-assistant
-      GKE_CLUSTER_NAME: k8s-hedera-playground
-      GKE_LOCATION: us-central1
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Install infra tools
+        uses: ./.github/actions/infra-install
 
       - name: Configure Google Cloud Auth
         uses: google-github-actions/auth@v2
@@ -40,46 +34,77 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDP }}
           service_account: ${{ vars.GCP_IDP_SERVICE_ACCOUNT_ARTIFACT_REGISTRY }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - id: get-credentials
+        name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
         with:
-          version: ">= 363.0.0"
-
-      - name: Fetch GKE credentials
-        run: |
-          gcloud container clusters get-credentials "${GKE_CLUSTER_NAME}" \
-            --region "${GKE_LOCATION}" \
-            --project "${{ vars.GCP_PROJECT_ID }}"
-
-      - name: Ensure namespace exists
-        run: |
-          kubectl create namespace "${K8S_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          cluster_name: k8s-${{ vars.GCP_ENVIRONMENT_ID }}
+          location: ${{ vars.GCP_LOCATION_ID }}
 
       - name: Prepare Helm values
-        env:
-          IMAGE_TAG: ${{ github.event.inputs.version }}
         run: |
           set -euo pipefail
-          yq eval ".image.repository = \"${DOCKER_IMAGE_PATH}\"" -i "${VALUES_FILE}"
-          yq eval ".image.tag = \"${IMAGE_TAG}\"" -i "${VALUES_FILE}"
+          VALUES_FILE="${CHART_DIR}/values.yaml"
+          yq eval ".image.repository = \"${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/${CHART_NAME}\"" -i "${VALUES_FILE}"
+          yq eval ".image.tag = \"${{ github.event.inputs.version }}\"" -i "${VALUES_FILE}"
           yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i "${VALUES_FILE}"
-          yq eval ".env.redis.password = \"${{ secrets.AI_ASSISTANT_REDIS_PASSWORD }}\"" -i "${VALUES_FILE}"
+          yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i "${VALUES_FILE}"
+          yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i "${VALUES_FILE}"
 
-      - name: Deploy chart
+      - name: Upgrade Pod
         run: |
-          helm upgrade \
-            --install "${RELEASE_NAME}" "${CHART_DIR}" \
-            --namespace "${K8S_NAMESPACE}" \
-            --create-namespace \
-            --wait \
-            --timeout 15m0s
+          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
+          CHART_DIR="${CHART_DIR}/."
+          if helm status "${RELEASE}" >/dev/null 2>&1; then
+            echo "Release exists, performing upgrade..."
+            helm upgrade "${RELEASE}" "${CHART_DIR}" --wait --atomic
+          else
+            echo "No release found, performing install..."
+            helm install "${RELEASE}" "${CHART_DIR}" --wait --atomic
+          fi
 
-      - name: Wait for rollout
+      - name: Restart deployment
+        if: ${{ github.ref != 'refs/heads/master' }}
         run: |
-          kubectl rollout status deployment/"${RELEASE_NAME}"-ai-assistant-dpl \
-            --namespace "${K8S_NAMESPACE}" \
-            --timeout=600s
+          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
+          # Chart defines deployment name as: "<release>-ai-assistant-dpl"
+          DEPLOYMENT_NAME="${RELEASE}-${CHART_NAME}-dpl"
+          echo "Restarting deployment ${DEPLOYMENT_NAME}..."
+          kubectl rollout restart deployment "${DEPLOYMENT_NAME}"
+
+      - name: Waiting for pods to be Ready
+        run: |
+          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
+          DEPLOYMENT_NAME="${RELEASE}-${CHART_NAME}-dpl"
+          echo "Waiting for pods from '${DEPLOYMENT_NAME}' to be in 'Running' state..."
+          for i in {1..6}; do
+            NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOYMENT_NAME}" | tail -n 1 | awk '{print $1}')
+            if [ -z "${NEW_POD}" ]; then
+              echo "No pod found yet for '${DEPLOYMENT_NAME}'. Retrying in 10 seconds..."
+              sleep 10
+              continue
+            fi
+            POD_STATUS=$(kubectl get pod "$NEW_POD" --no-headers | awk '{print $3}')
+            
+            if [[ "$POD_STATUS" == "Running" ]]; then
+              echo "New '${DEPLOYMENT_NAME}' pod ($NEW_POD) is running"
+              break
+            else
+              echo "New '${DEPLOYMENT_NAME}' pod ($NEW_POD) is still in state $POD_STATUS. Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+
+      - name: Get logs from newest pod
+        run: |
+          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
+          DEPLOYMENT_NAME="${RELEASE}-${CHART_NAME}-dpl"
+          NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOYMENT_NAME}" | tail -n 1 | awk '{print $1}')
+          echo "Fetching logs for pod: ${NEW_POD}"
+          kubectl logs "${NEW_POD}"
 
       - name: Show pods
         run: |
-          kubectl get pods -n "${K8S_NAMESPACE}"
+          echo "Showing pods..."
+          kubectl get pods

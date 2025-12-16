@@ -16,7 +16,7 @@ on:
 
 jobs:
   build_on_main:
-    name: Build AI Assistant - ${{ github.event.inputs.version }} - Main
+    name: Build - ${{ github.event.inputs.version }} - Main
     runs-on: ubuntu-latest
     environment: develop
     permissions:
@@ -76,6 +76,7 @@ jobs:
       DOCKER_IMAGE_PATH: ${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/ai-assistant
       TEMP_IMAGE_PATH: /tmp/ai-assistant_${{ github.event.inputs.version }}.tar
       DOCKERFILE_PATH: ./app/ai-assistant/.
+      FINAL_IMAGE_TAG: ai-assistant-v${{ github.event.inputs.version }}
     permissions:
       contents: "read"
       id-token: "write"
@@ -98,8 +99,6 @@ jobs:
         if: ${{ github.ref != 'refs/heads/master' }}
         uses: actions/checkout@v4
         with:
-          repository: "hedera-dev/playground-backend"
-          token: ${{ secrets.REPOSITORY_PERMISSIONS_TOKEN }}
           ref: ${{ github.ref }}
 
       - name: Configure Google Cloud Auth
@@ -136,10 +135,9 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git fetch --all
-          git checkout "${GITHUB_REF_NAME}"
-          git tag -a "ai-assistant-v${{ github.event.inputs.version }}" -m "Version ${{ github.event.inputs.version }}"
-          git push origin "ai-assistant-v${{ github.event.inputs.version }}"
+          git fetch --all --tags
+          git tag -a "${{ env.FINAL_IMAGE_TAG }}" -m "Version ${{ github.event.inputs.version }}"
+          git push origin "${{ env.FINAL_IMAGE_TAG }}"
 
       - name: Display success
         run: |
