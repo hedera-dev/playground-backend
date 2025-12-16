@@ -20,7 +20,7 @@ jobs:
       HELM_RELEASE_SUFIX: ai-assistant
       CHART_NAME: ai-assistant
       CHART_DIR: infrastructure/k8s/helm/charts/ai-assistant
-
+      VALUES_FILE: infrastructure/k8s/helm/charts/ai-assistant/values.yaml
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -44,67 +44,49 @@ jobs:
 
       - name: Prepare Helm values
         run: |
-          set -euo pipefail
-          VALUES_FILE="${CHART_DIR}/values.yaml"
-          yq eval ".image.repository = \"${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/${CHART_NAME}\"" -i "${VALUES_FILE}"
-          yq eval ".image.tag = \"${{ github.event.inputs.version }}\"" -i "${VALUES_FILE}"
-          yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i "${VALUES_FILE}"
-          yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i "${VALUES_FILE}"
-          yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i "${VALUES_FILE}"
+          yq eval ".image.repository = \"${{ vars.GCP_ARTIFACT_REPOSITORY }}/playground/${{ env.CHART_NAME }}\"" -i "${{ env.VALUES_FILE }}"
+          yq eval ".image.tag = \"${{ github.event.inputs.version }}\"" -i "${{ env.VALUES_FILE }}"
+          yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i "${{ env.VALUES_FILE }}"
+          yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i "${{ env.VALUES_FILE }}"
+          yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i "${{ env.VALUES_FILE }}"
 
       - name: Upgrade Pod
         run: |
-          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
-          CHART_DIR="${CHART_DIR}/."
-          if helm status "${RELEASE}" >/dev/null 2>&1; then
+          if helm status "${{ vars.HELM_RELEASE_PREFIX }}${{ env.HELM_RELEASE_SUFIX}}" >/dev/null 2>&1; then
             echo "Release exists, performing upgrade..."
-            helm upgrade "${RELEASE}" "${CHART_DIR}" --wait --atomic
+            helm upgrade "${{ vars.HELM_RELEASE_PREFIX }}${{env.HELM_RELEASE_SUFIX}}" "${{env.CHART_DIR}}/.
           else
             echo "No release found, performing install..."
-            helm install "${RELEASE}" "${CHART_DIR}" --wait --atomic
+            helm install "${{ vars.HELM_RELEASE_PREFIX }}${{env.HELM_RELEASE_SUFIX}}" "${{env.CHART_DIR}}/.
           fi
 
       - name: Restart deployment
         if: ${{ github.ref != 'refs/heads/master' }}
         run: |
-          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
-          # Chart defines deployment name as: "<release>-ai-assistant-dpl"
-          DEPLOYMENT_NAME="${RELEASE}-${CHART_NAME}-dpl"
-          echo "Restarting deployment ${DEPLOYMENT_NAME}..."
-          kubectl rollout restart deployment "${DEPLOYMENT_NAME}"
+          echo "Restarting deployment..."
+          kubectl rollout restart deployment ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFIX}}-${{env.CHART_NAME}}
 
-      - name: Waiting for pods to be Ready
+      - name: Waiting for '${{ vars.HELM_RELEASE_PREFIX }}${{ env.HELM_RELEASE_SUFIX }}-${{ env.CHART_NAME }}' pods to be Ready
         run: |
-          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
-          DEPLOYMENT_NAME="${RELEASE}-${CHART_NAME}-dpl"
-          echo "Waiting for pods from '${DEPLOYMENT_NAME}' to be in 'Running' state..."
+          echo "Waiting for '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFIX}}-${{env.CHART_NAME}}' pods to be in 'Running' state..."
           for i in {1..6}; do
-            NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOYMENT_NAME}" | tail -n 1 | awk '{print $1}')
-            if [ -z "${NEW_POD}" ]; then
-              echo "No pod found yet for '${DEPLOYMENT_NAME}'. Retrying in 10 seconds..."
-              sleep 10
-              continue
-            fi
-            POD_STATUS=$(kubectl get pod "$NEW_POD" --no-headers | awk '{print $3}')
-            
+            NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFIX}}-${{env.CHART_NAME}}" | tail -n 1 | awk '{print $1}')
+            POD_STATUS=$(kubectl get pod $NEW_POD --no-headers | awk '{print $3}')
             if [[ "$POD_STATUS" == "Running" ]]; then
-              echo "New '${DEPLOYMENT_NAME}' pod ($NEW_POD) is running"
+              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFIX}}-${{env.CHART_NAME}}' pod ($NEW_POD) is running"
               break
             else
-              echo "New '${DEPLOYMENT_NAME}' pod ($NEW_POD) is still in state $POD_STATUS. Retrying in 10 seconds..."
+              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFIX}}-${{env.CHART_NAME}}' pod ($NEW_POD) is still in state $POD_STATUS. Retrying in 10 seconds..."
               sleep 10
             fi
           done
 
-      - name: Get logs from newest pod
+      - name: Get logs from the newest '${{ vars.HELM_RELEASE_PREFIX }}${{ env.HELM_RELEASE_SUFIX }}-${{ env.CHART_NAME }}' pod
         run: |
-          RELEASE="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFIX}"
-          DEPLOYMENT_NAME="${RELEASE}-${CHART_NAME}-dpl"
-          NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOYMENT_NAME}" | tail -n 1 | awk '{print $1}')
-          echo "Fetching logs for pod: ${NEW_POD}"
-          kubectl logs "${NEW_POD}"
+          NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFIX}}-${{env.CHART_NAME}}" | tail -n 1 | awk '{print $1}')
+          echo "Fetching logs for the new pod: $NEW_POD"
+          kubectl logs "$NEW_POD"
 
-      - name: Show pods
-        run: |
-          echo "Showing pods..."
-          kubectl get pods
+      - id: "get-pods"
+        name: Show pods
+        run: "echo ${{ steps.get-pods.outputs.stdout }}"

@@ -135,7 +135,8 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git fetch --all --tags
+          git fetch --all
+          git checkout ${{ github.ref }}
           git tag -a "${{ env.FINAL_IMAGE_TAG }}" -m "Version ${{ github.event.inputs.version }}"
           git push origin "${{ env.FINAL_IMAGE_TAG }}"
 
