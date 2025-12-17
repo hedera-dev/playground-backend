@@ -90,32 +90,41 @@ fastify.setErrorHandler((error, request, reply) => {
   // Thanks to our onError callback in agents, we now receive the original AI_APICallError
   const openaiError = error as any;
   
-  if (openaiError.statusCode && openaiError.data?.error) {
-    const errorData = openaiError.data.error;
+  if (openaiError.statusCode && openaiError.data) {
+    const errorData = openaiError.data?.error || {};
     
     fastify.log.warn({ 
       statusCode: openaiError.statusCode, 
       type: errorData.type,
       code: errorData.code,
-      message: openaiError.message 
+      message: openaiError.message,
+      url: openaiError.url,
+      responseBody: openaiError.responseBody
     }, 'OpenAI API error');
 
     return reply.status(openaiError.statusCode).send({
       reason: ErrorReason.EXTERNAL_SERVICE_ERROR,
-      message: openaiError.message,
+      message: openaiError.message || 'OpenAI API error',
       statusCode: openaiError.statusCode,
       details: {
         service: 'OpenAI',
         operation: 'streamText',
         type: errorData.type,
-        code: errorData.code
+        code: errorData.code,
+        responseBody: openaiError.responseBody
       },
       timestamp: new Date().toISOString()
     });
   }
 
   // Handle unknown errors
-  fastify.log.error(error);
+  // Log only essential error information to avoid excessive logs
+  fastify.log.error({
+    name: error.name,
+    message: error.message,
+    statusCode: (error as any).statusCode,
+    stack: error.stack
+  }, 'Unhandled error');
 
   const statusCode = (error as any).statusCode || 500;
   const message = error.message || 'Internal Server Error';

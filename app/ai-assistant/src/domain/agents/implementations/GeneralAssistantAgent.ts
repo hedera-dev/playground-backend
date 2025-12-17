@@ -68,11 +68,16 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
 
     return result.toUIMessageStreamResponse();
     } catch (error) {
-      requestLogger.error('Error in streamText', error);
+      // Log only essential error information to avoid excessive logs
+      requestLogger.error('Error in streamText', {
+        name: (error as any)?.name,
+        message: (error as any)?.message,
+        statusCode: (error as any)?.statusCode,
+      });
       
       // If we captured the original error in onError callback, throw that instead of the wrapper
       if (capturedError) {
-        requestLogger.info('Re-throwing captured OpenAI error with full details');
+        requestLogger.info('Re-throwing captured OpenAI error');
         throw capturedError;
       }
       
