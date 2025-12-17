@@ -3,6 +3,7 @@ import { ChatService } from '../../../domain/services/ChatService.js';
 import { ChatSession } from '../../../types.js';
 import { UIMessage } from 'ai';
 import { isLocal } from '../../../utils/environment.js';
+import { NotFoundError, ErrorReason } from '../../../utils/errors.js';
 
 export class ChatControllerImpl {
   private basePath = '/api/playground/assistant';
@@ -42,8 +43,7 @@ export class ChatControllerImpl {
 
     const session = this.sessions.get(conversationId);
     if (!session) {
-      reply.status(404).send({ message: 'Conversation not found' });
-      return;
+      throw new NotFoundError('Conversation not found', ErrorReason.CONVERSATION_NOT_FOUND);
     }
 
     return {

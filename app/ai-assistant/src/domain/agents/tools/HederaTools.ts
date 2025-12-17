@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { tool } from 'ai';
 import { createLogger } from '../../../utils/logger.js';
+import { ExternalServiceError, ErrorReason, ValidationError } from '../../../utils/errors.js';
 
 const logger = createLogger(undefined, 'HederaTools');
 
@@ -59,7 +60,10 @@ function extractJSONFromSSE(sseData: string): any {
     try {
       return JSON.parse(sseData);
     } catch {
-      throw new Error('No valid JSON data found in SSE stream');
+      throw new ExternalServiceError('No valid JSON data found in SSE stream', ErrorReason.HEDERA_MCP_ERROR, 502, {
+        service: 'Hedera MCP',
+        operation: 'parseSSE'
+      });
     }
   }
 
@@ -71,7 +75,10 @@ function extractJSONFromSSE(sseData: string): any {
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
     }
-    throw new Error(`Failed to parse JSON from SSE: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new ExternalServiceError(`Failed to parse JSON from SSE: ${error instanceof Error ? error.message : 'Unknown error'}`, ErrorReason.HEDERA_MCP_ERROR, 502, {
+      service: 'Hedera MCP',
+      operation: 'parseSSE'
+    });
   }
 }
 
@@ -109,7 +116,12 @@ async function searchHederaMCP(query: string): Promise<any> {
         errorText,
         query
       });
-      throw new Error(`Hedera MCP request failed: ${response.status} ${response.statusText}`);
+      throw new ExternalServiceError(`Hedera MCP request failed: ${response.status} ${response.statusText}`, ErrorReason.HEDERA_MCP_ERROR, response.status >= 500 ? 503 : 502, { 
+        service: 'Hedera MCP',
+        operation: 'search',
+        query, 
+        errorText 
+      });
     }
 
     // Check if response is SSE stream
@@ -117,7 +129,10 @@ async function searchHederaMCP(query: string): Promise<any> {
     if (contentType.includes('text/event-stream')) {
       // Handle SSE stream
       if (!response.body) {
-        throw new Error('Response body is null');
+        throw new ExternalServiceError('Response body is null', ErrorReason.HEDERA_MCP_ERROR, 502, {
+          service: 'Hedera MCP',
+          operation: 'search'
+        });
       }
 
       const reader = response.body.getReader();
@@ -127,7 +142,12 @@ async function searchHederaMCP(query: string): Promise<any> {
       // Handle error responses
       if (data.error) {
         logger.error('Hedera MCP error', { error: data.error, query });
-        throw new Error(`Hedera MCP error: ${JSON.stringify(data.error)}`);
+        throw new ExternalServiceError(`Hedera MCP error: ${JSON.stringify(data.error)}`, ErrorReason.HEDERA_MCP_ERROR, 502, { 
+          service: 'Hedera MCP',
+          operation: 'search',
+          query, 
+          mcpError: data.error 
+        });
       }
 
       return data;
@@ -138,14 +158,27 @@ async function searchHederaMCP(query: string): Promise<any> {
       // Handle error responses
       if (data.error) {
         logger.error('Hedera MCP error', { error: data.error, query });
-        throw new Error(`Hedera MCP error: ${JSON.stringify(data.error)}`);
+        throw new ExternalServiceError(`Hedera MCP error: ${JSON.stringify(data.error)}`, ErrorReason.HEDERA_MCP_ERROR, 502, { 
+          service: 'Hedera MCP',
+          operation: 'search',
+          query, 
+          mcpError: data.error 
+        });
       }
 
       return data;
     }
   } catch (error) {
     logger.error('Error calling Hedera MCP', { error, query });
+    if (error instanceof ExternalServiceError) {
     throw error;
+    }
+    throw new ExternalServiceError('Error calling Hedera MCP', ErrorReason.HEDERA_MCP_ERROR, 502, { 
+      service: 'Hedera MCP',
+      operation: 'search',
+      query, 
+      originalError: error instanceof Error ? error.message : String(error) 
+    });
   }
 }
 
@@ -163,10 +196,7 @@ export const searchHederaTool = () =>
       logger.info('Executing searchHedera tool', { query: args?.query });
       if (!args || !args.query) {
         logger.warn('SearchHedera called without query');
-        return {
-          error: 'Query parameter is required',
-          results: []
-        };
+        throw new ValidationError('Query parameter is required', ErrorReason.INVALID_INPUT);
       }
 
       try {
@@ -243,12 +273,17 @@ export const searchHederaTool = () =>
           errorDetails: error,
           query: args.query
         });
-        return {
-          query: args.query,
-          error: errorMessage,
-          results: [],
-          status: 'error'
-        };
+        // Re-throw typed errors
+        if (error instanceof ExternalServiceError || error instanceof ValidationError) {
+          throw error;
+        }
+        // Wrap unknown errors
+        throw new ExternalServiceError('Error executing SearchHedera tool', ErrorReason.HEDERA_MCP_ERROR, 502, { 
+          service: 'Hedera MCP',
+          operation: 'search',
+          query: args.query, 
+          originalError: errorMessage 
+        });
       }
     }
   });

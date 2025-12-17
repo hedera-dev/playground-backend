@@ -27,6 +27,10 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
     const metadataMessages = this.createContextMessages(metadata);
     const messages = [...metadataMessages, ...userMessages];
 
+    // Capture the original error from onError callback
+    let capturedError: any = null;
+
+    try {
     // Use user's API key if provided (BYOK), otherwise use system key
     const openaiProvider = context.userApiKey ? createOpenAI({ apiKey: context.userApiKey }) : openai;
 
@@ -39,6 +43,16 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
       },
       toolChoice: 'auto',
       stopWhen: stepCountIs(2),
+        onError: ({ error }) => {
+          // Capture the actual error before AI SDK wraps it
+          capturedError = error;
+          requestLogger.error('OpenAI API error during streaming', {
+            name: (error as any).name,
+            message: (error as any).message,
+            statusCode: (error as any).statusCode,
+            data: (error as any).data
+          });
+        }
     });
 
     const tokens = await result.usage;
@@ -53,6 +67,17 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
     }
 
     return result.toUIMessageStreamResponse();
+    } catch (error) {
+      requestLogger.error('Error in streamText', error);
+      
+      // If we captured the original error in onError callback, throw that instead of the wrapper
+      if (capturedError) {
+        requestLogger.info('Re-throwing captured OpenAI error with full details');
+        throw capturedError;
+      }
+      
+      throw error;
+    }
   }
 
   private createContextMessages(metadata: UserMetadata): ModelMessage[] {
