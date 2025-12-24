@@ -25,13 +25,23 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
   attribute_condition = "assertion.repository=='${local.deployment["github_repository"]}'"
 }
 
+# Bind GitHub Actions to use the playground-sa service account (legacy/compatibility)
 resource "google_service_account_iam_member" "playground_wip_binding" {
-  depends_on = [ google_service_account.playground_service_account, google_iam_workload_identity_pool.playground_wip, google_iam_workload_identity_pool_provider.github_provider ]
+  depends_on         = [google_service_account.playground_service_account, google_iam_workload_identity_pool.playground_wip, google_iam_workload_identity_pool_provider.github_provider]
   service_account_id = google_service_account.playground_service_account.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.playground_wip.name}/attribute.repository/${local.deployment["github_repository"]}"
 }
 
+# Bind GitHub Actions to use the github-actions-sa service account (recommended)
+resource "google_service_account_iam_member" "github_actions_wip_binding" {
+  depends_on         = [google_service_account.github_actions_service_account, google_iam_workload_identity_pool.playground_wip, google_iam_workload_identity_pool_provider.github_provider]
+  service_account_id = google_service_account.github_actions_service_account.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.playground_wip.name}/attribute.repository/${local.deployment["github_repository"]}"
+}
+
+# Bind Kubernetes pods to use the playground-sa service account
 resource "google_service_account_iam_member" "playground_gke_workload_identity_binding" {
   depends_on         = [google_service_account.playground_service_account]
   service_account_id = google_service_account.playground_service_account.name
