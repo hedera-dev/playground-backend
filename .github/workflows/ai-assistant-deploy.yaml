@@ -1,0 +1,96 @@
+name: Deploy AI Assistant
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Docker image tag"
+        required: true
+        default: "latest"
+
+jobs:
+  infra-tools:
+    uses: ./.github/workflows/prepare.yaml
+  deploy:
+    name: Deploy - ${{ github.event.inputs.version }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}
+    needs: infra-tools
+    permissions:
+      contents: "read"
+      id-token: "write"
+    env:
+      HELM_RELEASE_SUFFIX: ai
+      CHART_NAME: ai-assistant
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fill values (secrets and variables)
+        run: |
+          yq eval ".image.tag = \"${{ github.event.inputs.version }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.CODE_REVIEW_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.CODE_INTEGRATION_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.GENERAL_ASSISTANT_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.EXECUTION_ANALYZER_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.TOKENS_LIMIT_PER_MONTH = \"${{ vars.AI_ASSISTANT_TOKENS_LIMIT_PER_MONTH }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+
+
+      - name: Configure Google Cloud Auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
+          service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+
+      - id: get-credentials
+        name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          cluster_name: ${{ vars.K8S_PLAYGROUND_NAME }}
+          location: ${{ vars.GCP_K8S_LOCATION }}
+
+      - name: Upgrade Pod
+        run: |
+          if helm status ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} >/dev/null 2>&1; then
+            echo "Release exists, performing upgrade..."
+            helm upgrade ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} ./k8s/helm/charts/${{env.CHART_NAME}}/.
+          else
+            echo "No release found, performing install..."
+            helm install ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} ./k8s/helm/charts/${{env.CHART_NAME}}/.
+          fi
+
+      - name: Restart deployment
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          echo "Restarting deployment.."
+          kubectl rollout restart deployment ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}
+
+      - name: Waiting for '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' Pods to be Ready
+        run: |
+          echo "Waiting for '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' pods to be in 'Running' state..."
+          for i in {1..6}; do
+            NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep '^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' | tail -n 1 | awk '{print $1}')
+            POD_STATUS=$(kubectl get pod $NEW_POD --no-headers | awk '{print $3}')
+            
+            if [[ "$POD_STATUS" == "Running" ]]; then
+              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' pod ($NEW_POD) is running"
+              break
+            else
+              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' pod ($NEW_POD) is still in state $POD_STATUS. Retrying in 10 seconds..."
+              sleep 10
+            fi
+          done
+
+      - name: Get Logs from New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' Pod
+        run: |
+          NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep '^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' | tail -n 1 | awk '{print $1}')
+          echo "Fetching logs for the new pod: $NEW_POD"
+          kubectl logs $NEW_POD
+
+      - id: "get-pods"
+        run: "kubectl get pods"
