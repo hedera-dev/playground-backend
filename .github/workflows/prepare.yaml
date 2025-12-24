@@ -5,12 +5,6 @@ on:
 
 jobs:
   prepare:
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-    environment: ${{ 
-      github.ref == 'refs/heads/master' && 'production' || 
-      'develop' }}
     name: Prepare
     runs-on: ubuntu-latest
     steps:
