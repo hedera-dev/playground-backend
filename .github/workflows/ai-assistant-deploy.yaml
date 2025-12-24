@@ -29,15 +29,15 @@ jobs:
 
       - name: Fill values (secrets and variables)
         run: |
-          yq eval ".image.tag = \"${{ github.event.inputs.version }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.CODE_REVIEW_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.CODE_INTEGRATION_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.GENERAL_ASSISTANT_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.EXECUTION_ANALYZER_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.TOKENS_LIMIT_PER_MONTH = \"${{ vars.AI_ASSISTANT_TOKENS_LIMIT_PER_MONTH }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".image.tag = \"${{ github.event.inputs.version }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.CODE_REVIEW_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.CODE_INTEGRATION_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.GENERAL_ASSISTANT_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.EXECUTION_ANALYZER_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.TOKENS_LIMIT_PER_MONTH = \"${{ vars.AI_ASSISTANT_TOKENS_LIMIT_PER_MONTH }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
       - name: Configure Google Cloud Auth
         uses: google-github-actions/auth@v2
         with:
@@ -61,10 +61,10 @@ jobs:
         run: |
           if helm status ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} >/dev/null 2>&1; then
             echo "Release exists, performing upgrade..."
-            helm upgrade ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} ./k8s/helm/charts/${{env.CHART_NAME}}/.
+            helm upgrade ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} ./infrastructure/k8s/helm/charts/${{env.CHART_NAME}}/.
           else
             echo "No release found, performing install..."
-            helm install ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} ./k8s/helm/charts/${{env.CHART_NAME}}/.
+            helm install ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}} ./infrastructure/k8s/helm/charts/${{env.CHART_NAME}}/.
           fi
 
       - name: Restart deployment
