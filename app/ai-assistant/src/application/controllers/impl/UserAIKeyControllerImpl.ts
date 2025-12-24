@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { UserAIKeyController } from '../UserAIKeyController.js';
 import { UserAIKeyService } from '../../../domain/services/UserAIKeyService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { APIError } from '../../../utils/errors.js';
+import { AuthorizationError, NotFoundError, ErrorReason } from '../../../utils/errors.js';
 import { z } from 'zod';
 
 const logger = createLogger();
@@ -30,7 +30,7 @@ export class UserAIKeyControllerImpl implements UserAIKeyController {
     const userId = request.headers['x-user-id'] as string;
 
     if (!userId) {
-      throw new APIError('No valid session found', 403);
+      throw new AuthorizationError('No valid session found', ErrorReason.INVALID_SESSION);
     }
 
     const body = StoreKeySchema.parse(request.body);
@@ -45,11 +45,11 @@ export class UserAIKeyControllerImpl implements UserAIKeyController {
     return reply.status(201).send();
   }
 
-  private async getKey(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  private async getKey(request: FastifyRequest, reply: FastifyReply): Promise<any> {
     const userId = request.headers['x-user-id'] as string;
 
     if (!userId) {
-      throw new APIError('No valid session found', 403);
+      throw new AuthorizationError('No valid session found', ErrorReason.INVALID_SESSION);
     }
 
     const key = await this.userKeyService.getKeyInfo(userId);
@@ -63,7 +63,7 @@ export class UserAIKeyControllerImpl implements UserAIKeyController {
     const userId = request.headers['x-user-id'] as string;
 
     if (!userId) {
-      throw new APIError('No valid session found', 403);
+      throw new AuthorizationError('No valid session found', ErrorReason.INVALID_SESSION);
     }
 
     logger.info('Deleting user AI key', { userId });
@@ -71,7 +71,7 @@ export class UserAIKeyControllerImpl implements UserAIKeyController {
     const deleted = await this.userKeyService.deleteKey(userId);
 
     if (!deleted) {
-      return reply.status(404).send();
+      throw new NotFoundError('User AI key not found', ErrorReason.USER_KEY_NOT_FOUND);
     }
 
     return reply.status(204).send();
@@ -81,11 +81,11 @@ export class UserAIKeyControllerImpl implements UserAIKeyController {
    * TEST ENDPOINT - Returns decrypted API key
    * WARNING: Only for development/testing purposes
    */
-  private async getDecryptedKey(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+  private async getDecryptedKey(request: FastifyRequest, reply: FastifyReply): Promise<any> {
     const userId = request.headers['x-user-id'] as string;
 
     if (!userId) {
-      throw new APIError('No valid session found', 403);
+      throw new AuthorizationError('No valid session found', ErrorReason.INVALID_SESSION);
     }
 
     logger.warn('Decrypting user AI key for testing', { userId });

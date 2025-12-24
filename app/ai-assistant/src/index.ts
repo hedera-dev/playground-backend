@@ -10,6 +10,7 @@ import { PgClient } from './infrastructure/persistence/PgConnector.js';
 import { initializeKmsService } from './infrastructure/kms/KmsService.js';
 import { UserAIKeyService } from './domain/services/UserAIKeyService.js';
 import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
+import { APIError, ErrorReason } from './utils/errors.js';
 
 // Load environment variables
 config();
@@ -59,29 +60,77 @@ fastify.setErrorHandler((error, request, reply) => {
     fastify.log.warn({ issues: error.issues, path: request.url }, 'Validation error');
 
     return reply.status(400).send({
+      reason: ErrorReason.VALIDATION_ERROR,
       message: 'Validation error',
       statusCode: 400,
+      details: {
       errors: error.issues.map((issue) => ({
         path: issue.path.join('.'),
         message: issue.message,
         code: issue.code
-      })),
+        }))
+      },
       timestamp: new Date().toISOString()
     });
   }
 
-  // Log internal errors with full stack
-  if (!error.statusCode || error.statusCode >= 500) {
+  // Handle custom API errors
+  if (error instanceof APIError) {
+    // Log based on severity
+    if (error.statusCode >= 500) {
     fastify.log.error(error);
   } else {
-    // Log client errors (4xx) as warnings
     fastify.log.warn(error);
   }
 
-  const statusCode = error.statusCode || 500;
+    return reply.status(error.statusCode).send(error.toJSON());
+  }
+
+  // Handle OpenAI API errors from AI SDK
+  // Thanks to our onError callback in agents, we now receive the original AI_APICallError
+  const openaiError = error as any;
+  
+  if (openaiError.statusCode && openaiError.data) {
+    const errorData = openaiError.data?.error || {};
+    
+    fastify.log.warn({ 
+      statusCode: openaiError.statusCode, 
+      type: errorData.type,
+      code: errorData.code,
+      message: openaiError.message,
+      url: openaiError.url,
+      responseBody: openaiError.responseBody
+    }, 'OpenAI API error');
+
+    return reply.status(openaiError.statusCode).send({
+      reason: ErrorReason.EXTERNAL_SERVICE_ERROR,
+      message: openaiError.message || 'OpenAI API error',
+      statusCode: openaiError.statusCode,
+      details: {
+        service: 'OpenAI',
+        operation: 'streamText',
+        type: errorData.type,
+        code: errorData.code,
+        responseBody: openaiError.responseBody
+      },
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Handle unknown errors
+  // Log only essential error information to avoid excessive logs
+  fastify.log.error({
+    name: error.name,
+    message: error.message,
+    statusCode: (error as any).statusCode,
+    stack: error.stack
+  }, 'Unhandled error');
+
+  const statusCode = (error as any).statusCode || 500;
   const message = error.message || 'Internal Server Error';
 
   reply.status(statusCode).send({
+    reason: ErrorReason.INTERNAL_SERVER_ERROR,
     message,
     statusCode,
     timestamp: new Date().toISOString()
@@ -90,10 +139,13 @@ fastify.setErrorHandler((error, request, reply) => {
 
 fastify.setNotFoundHandler((request, reply) => {
   reply.status(404).send({
+    reason: ErrorReason.NOT_FOUND,
     message: 'Route not found',
     statusCode: 404,
+    details: {
     path: request.url,
-    method: request.method,
+      method: request.method
+    },
     timestamp: new Date().toISOString()
   });
 });

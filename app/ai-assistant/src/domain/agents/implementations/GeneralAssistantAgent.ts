@@ -1,10 +1,11 @@
-import { ModelMessage, streamText } from 'ai';
+import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { IGeneralAssistantAgent } from '../types/Agent.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { PROMPT_GENERAL } from '../../../utils/prompts.js';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
+import { searchHederaTool } from '../tools/HederaTools.js';
 
 export class GeneralAssistantAgent implements IGeneralAssistantAgent {
   private model: string;
@@ -26,14 +27,34 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
     const metadataMessages = this.createContextMessages(metadata);
     const messages = [...metadataMessages, ...userMessages];
 
+    // Capture the original error from onError callback
+    let capturedError: any = null;
+
+    try {
     // Use user's API key if provided (BYOK), otherwise use system key
     const openaiProvider = context.userApiKey ? createOpenAI({ apiKey: context.userApiKey }) : openai;
 
     const result = streamText({
       model: openaiProvider(context.model || this.model),
       messages,
-      system: PROMPT_GENERAL
+      system: PROMPT_GENERAL,
+      tools: {
+        searchHedera: searchHederaTool()
+      },
+      toolChoice: 'auto',
+      stopWhen: stepCountIs(2),
+        onError: ({ error }) => {
+          // Capture the actual error before AI SDK wraps it
+          capturedError = error;
+          requestLogger.error('OpenAI API error during streaming', {
+            name: (error as any).name,
+            message: (error as any).message,
+            statusCode: (error as any).statusCode,
+            data: (error as any).data
+          });
+        }
     });
+
     const tokens = await result.usage;
     requestLogger.info('Token usage', {
       tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`
@@ -44,7 +65,24 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
       await CacheClient.incrementNumber('GENERAL_ASSISTANT_OUTPUT_TOKENS', tokens.outputTokens!);
       await CacheClient.incrementNumberUntilEndOfMonth(context.userId, tokens.totalTokens!);
     }
+
     return result.toUIMessageStreamResponse();
+    } catch (error) {
+      // Log only essential error information to avoid excessive logs
+      requestLogger.error('Error in streamText', {
+        name: (error as any)?.name,
+        message: (error as any)?.message,
+        statusCode: (error as any)?.statusCode,
+      });
+      
+      // If we captured the original error in onError callback, throw that instead of the wrapper
+      if (capturedError) {
+        requestLogger.info('Re-throwing captured OpenAI error');
+        throw capturedError;
+      }
+      
+      throw error;
+    }
   }
 
   private createContextMessages(metadata: UserMetadata): ModelMessage[] {

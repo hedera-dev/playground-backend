@@ -1,6 +1,6 @@
 import { KeyManagementServiceClient } from '@google-cloud/kms';
 import { createLogger } from '../../utils/logger.js';
-import { APIError } from '../../utils/errors.js';
+import { ExternalServiceError, InternalServerError, ErrorReason } from '../../utils/errors.js';
 
 const logger = createLogger();
 
@@ -49,7 +49,10 @@ export class KmsService {
       if (!encryptResponse.ciphertext) {
         const errorMessage = 'KMS encryption returned no ciphertext';
         logger.error(errorMessage);
-        throw new APIError(errorMessage, 400);
+        throw new ExternalServiceError(errorMessage, ErrorReason.KMS_ENCRYPTION_ERROR, 502, {
+          service: 'KMS',
+          operation: 'encrypt'
+        });
       }
 
       // Extract only the version number from the full path (if available)
@@ -68,7 +71,14 @@ export class KmsService {
     } catch (error) {
       const errorMessage = 'Error encrypting data with KMS';
       logger.error(errorMessage, error);
-      throw new APIError(errorMessage, 500);
+      if (error instanceof ExternalServiceError) {
+        throw error;
+      }
+      throw new ExternalServiceError(errorMessage, ErrorReason.KMS_ENCRYPTION_ERROR, 502, { 
+        service: 'KMS',
+        operation: 'encrypt',
+        originalError: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
@@ -91,7 +101,10 @@ export class KmsService {
       if (!decryptResponse.plaintext) {
         const errorMessage = 'KMS decryption returned no plaintext';
         logger.error(errorMessage);
-        throw new APIError(errorMessage, 400);
+        throw new ExternalServiceError(errorMessage, ErrorReason.KMS_DECRYPTION_ERROR, 502, {
+          service: 'KMS',
+          operation: 'decrypt'
+        });
       }
 
       const plaintext = Buffer.from(decryptResponse.plaintext).toString('utf8');
@@ -101,7 +114,14 @@ export class KmsService {
     } catch (error) {
       const errorMessage = 'Error decrypting data with KMS';
       logger.error(errorMessage, error);
-      throw new APIError(errorMessage, 500);
+      if (error instanceof ExternalServiceError) {
+        throw error;
+      }
+      throw new ExternalServiceError(errorMessage, ErrorReason.KMS_DECRYPTION_ERROR, 502, { 
+        service: 'KMS',
+        operation: 'decrypt',
+        originalError: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 }
@@ -125,7 +145,7 @@ export function initializeKmsService(): KmsService {
   };
 
   if (!config.projectId || !config.locationId || !config.keyRingId || !config.cryptoKeyId) {
-    throw new Error(
+    throw new InternalServerError(
       'KMS configuration incomplete. Required: GCP_PROJECT_ID, GCP_KMS_LOCATION, GCP_KMS_KEYRING, GCP_KMS_CRYPTO_KEY'
     );
   }
@@ -141,7 +161,7 @@ export function initializeKmsService(): KmsService {
  */
 export function getKmsService(): KmsService {
   if (!kmsServiceInstance) {
-    throw new Error('KMS Service not initialized. Call initializeKmsService() first.');
+    throw new InternalServerError('KMS Service not initialized. Call initializeKmsService() first.', ErrorReason.NOT_INITIALIZED);
   }
   return kmsServiceInstance;
 }

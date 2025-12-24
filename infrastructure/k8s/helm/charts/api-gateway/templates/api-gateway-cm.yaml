@@ -11,64 +11,81 @@ data:
     Content-Type: application/json
     
     {
-        "message": "Bad Request",
-        "reason": "The server could not understand the request due to invalid syntax."
+        "reason": "BAD_REQUEST",
+        "message": "The server could not understand the request due to invalid syntax",
+        "statusCode": 400
+    }
+  401.json: |
+    HTTP/1.1 401 Unauthorized
+    Content-Type: application/json
+
+    {
+        "reason": "AUTHENTICATION_FAILED",
+        "message": "Invalid or expired authentication token",
+        "statusCode": 401
     }
   403.json: |
     HTTP/1.1 403 Forbidden
     Content-Type: application/json
 
     {
-        "message": "Forbidden Access",
-        "reason": "Request forbidden by administrative rules."
+        "reason": "FORBIDDEN",
+        "message": "Request forbidden by administrative rules",
+        "statusCode": 403
     }
   408.json: |
     HTTP/1.1 408 Request Timeout
     Content-Type: application/json
     
     {
-        "message": "Request Timeout",
-        "reason": "The server timed out waiting for the request."
+        "reason": "REQUEST_TIMEOUT",
+        "message": "The server timed out waiting for the request",
+        "statusCode": 408
     }
   429.json: |
     HTTP/1.1 429 Too Many Requests
     Content-Type: application/json
     
     {
-        "message": "Too Many Requests",
-        "reason": "Rate limit exceeded."
+        "reason": "RATE_LIMIT_EXCEEDED",
+        "message": "Rate limit exceeded",
+        "statusCode": 429
     }
   500.json: |
     HTTP/1.1 500 Internal Server Error
     Content-Type: application/json
     
     {
-        "message": "Internal Server Error",
-        "reason": "The server encountered an unexpected condition that prevented it from fulfilling the request."
+        "reason": "INTERNAL_SERVER_ERROR",
+        "message": "The server encountered an unexpected condition that prevented it from fulfilling the request",
+        "statusCode": 500
     }
   502.json: |
     HTTP/1.1 502 Bad Gateway
     Content-Type: application/json
     
     {
-        "message": "Bad Gateway",
-        "reason": "The server, while acting as a gateway or proxy, received an invalid response from the upstream server."
+        "reason": "BAD_GATEWAY",
+        "message": "The server, while acting as a gateway or proxy, received an invalid response from the upstream server",
+        "statusCode": 502
     }
   503.json: |
     HTTP/1.1 503 Service Unavailable
     Content-Type: application/json
     
     {
-        "message": "Service Unavailable",
-        "reason": "The server is currently unable to handle the request due to temporary overloading or maintenance of the server."
+        "reason": "SERVICE_UNAVAILABLE",
+        "message": "The server is currently unable to handle the request due to temporary overloading or maintenance of the server",
+        "statusCode": 503
     }
   504.json: |
     HTTP/1.1 504 Gateway Timeout
     Content-Type: application/json
     
     {
-        "message": "Gateway Timeout",
-        "reason": "The server, while acting as a gateway or proxy, did not receive a timely response from the upstream server."
+        "reason": "GATEWAY_TIMEOUT",
+        "message": "The server, while acting as a gateway or proxy, did not receive a timely response from the upstream server",
+        "statusCode": 504
     }
   haproxy.cfg: |
     global
@@ -94,6 +111,7 @@ data:
         timeout server 120s
 
         errorfile 400 /usr/local/etc/haproxy/errors/400.json
+        errorfile 401 /usr/local/etc/haproxy/errors/401.json
         errorfile 403 /usr/local/etc/haproxy/errors/403.json
         errorfile 408 /usr/local/etc/haproxy/errors/408.json
         errorfile 429 /usr/local/etc/haproxy/errors/429.json
@@ -143,7 +161,7 @@ data:
       
         # Check authentication result (skip for health checks)
         # SPOE sets boolean true/false, HAProxy interprets as boolean
-        http-request deny if !{ var(txn.spoe.auth_ok) -m bool true } !is_health_check
+        http-request deny deny_status 401 if !{ var(txn.spoe.auth_ok) -m bool true } !is_health_check
 
         # Extract user_id from SPOE response and set as header
         http-request set-header X-User-ID %[var(txn.spoe.user_id)] if { var(txn.spoe.auth_ok) -m bool true }

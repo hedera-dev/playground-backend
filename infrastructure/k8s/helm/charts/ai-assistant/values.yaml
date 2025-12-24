@@ -4,7 +4,7 @@ serviceAccount: "ai-assistant-sa"
 
 image:
   repository: us-west1-docker.pkg.dev/playground-production-441511/playground/ai-assistant
-  tag: "1.1.0-feat-openai_byok-5"
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 service:
@@ -27,10 +27,10 @@ env:
     database: 6
   TOKENS_LIMIT_PER_MONTH: 300000
   ENABLE_MOCK_MODE: false
-  CODE_REVIEW_MODEL: gpt-4o
-  CODE_INTEGRATION_MODEL: gpt-4o
-  GENERAL_ASSISTANT_MODEL: gpt-4o
-  EXECUTION_ANALYZER_MODEL: gpt-4o
+  CODE_REVIEW_MODEL:
+  CODE_INTEGRATION_MODEL:
+  GENERAL_ASSISTANT_MODEL:
+  EXECUTION_ANALYZER_MODEL:
   PG_HOST: "psql-cluster-portal-prod-do-user-4434163-0.k.db.ondigitalocean.com"
   PG_PORT: 25060
   PG_DATABASE: "hedera_portal_prod"

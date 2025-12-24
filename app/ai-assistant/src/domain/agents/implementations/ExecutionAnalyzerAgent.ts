@@ -1,10 +1,11 @@
-import { ModelMessage, streamText } from 'ai';
+import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { IExecutionAnalyzerAgent } from '../types/Agent.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { PROMPT_EXECUTION_ANALYSIS } from '../../../utils/prompts.js';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
+import { searchHederaTool } from '../tools/HederaTools.js';
 export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
   private model: string;
   private logger = createLogger(undefined, 'ExecutionAnalyzerAgent');
@@ -24,13 +25,32 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     const metadataMessages = this.createContextMessages(metadata);
     const messages = [...metadataMessages, ...userMessages];
 
+    // Capture the original error from onError callback
+    let capturedError: any = null;
+
+    try {
     // Use user's API key if provided (BYOK), otherwise use system key
     const openaiProvider = context.userApiKey ? createOpenAI({ apiKey: context.userApiKey }) : openai;
 
     const result = streamText({
       model: openaiProvider(context.model || this.model),
       messages,
-      system: PROMPT_EXECUTION_ANALYSIS
+      system: PROMPT_EXECUTION_ANALYSIS,
+      tools: {
+        searchHedera: searchHederaTool()
+      },
+      toolChoice: 'auto',
+      stopWhen: stepCountIs(2),
+        onError: ({ error }) => {
+          // Capture the actual error before AI SDK wraps it
+          capturedError = error;
+          requestLogger.error('OpenAI API error during streaming', {
+            name: (error as any).name,
+            message: (error as any).message,
+            statusCode: (error as any).statusCode,
+            data: (error as any).data
+          });
+        }
     });
 
     const tokens = await result.usage;
@@ -45,6 +65,21 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     }
 
     return result.toUIMessageStreamResponse();
+    } catch (error) {
+      // Log only essential error information to avoid excessive logs
+      requestLogger.error('Error in streamText', {
+        name: (error as any)?.name,
+        message: (error as any)?.message,
+        statusCode: (error as any)?.statusCode
+      });
+      // If we captured the original error in onError callback, throw that instead of the wrapper
+      if (capturedError) {
+        requestLogger.info('Re-throwing captured OpenAI error');
+        throw capturedError;
+      }
+      
+      throw error;
+    }
   }
 
   private createContextMessages(metadata: UserMetadata): ModelMessage[] {

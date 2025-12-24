@@ -2,6 +2,7 @@ import { PgClient } from '../../persistence/PgConnector.js';
 import { UserAIKeyRepository } from '../UserAIKeyRepository.js';
 import { UserAIKey, CreateUserAIKeyRequest } from '../../../domain/entities/UserAIKey.js';
 import { logger } from '../../../utils/logger.js';
+import { ExternalServiceError, ErrorReason, InternalServerError } from '../../../utils/errors.js';
 
 export class UserAIKeyRepositoryImpl implements UserAIKeyRepository {
   private readonly tableName = 'user_ai_key';
@@ -18,14 +19,21 @@ export class UserAIKeyRepositoryImpl implements UserAIKeyRepository {
       const result = await PgClient.query(query, [data.user_id, data.encrypted_api_key, data.kms_key_version || null]);
 
       if (result.rows.length === 0) {
-        throw new Error('Failed to insert user AI key');
+        throw new InternalServerError('Failed to insert user AI key');
       }
 
       logger.debug({ userId: data.user_id }, 'User AI key inserted successfully');
       return this.mapRowToEntity(result.rows[0]);
     } catch (error) {
       logger.error({ userId: data.user_id }, 'Error inserting user AI key', error);
+      if (error instanceof InternalServerError) {
       throw error;
+      }
+      throw new ExternalServiceError('Database error while inserting user AI key', ErrorReason.DATABASE_ERROR, 503, { 
+        service: 'PostgreSQL',
+        operation: 'insert',
+        originalError: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
@@ -46,7 +54,11 @@ export class UserAIKeyRepositoryImpl implements UserAIKeyRepository {
       return this.mapRowToEntity(result.rows[0]);
     } catch (error) {
       logger.error({ userId }, 'Error finding user AI key by user ID', error);
-      throw error;
+      throw new ExternalServiceError('Database error while finding user AI key', ErrorReason.DATABASE_ERROR, 503, { 
+        service: 'PostgreSQL',
+        operation: 'findByUserId',
+        originalError: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
@@ -64,7 +76,11 @@ export class UserAIKeyRepositoryImpl implements UserAIKeyRepository {
       return deleted;
     } catch (error) {
       logger.error({ userId }, 'Error deleting user AI key', error);
-      throw error;
+      throw new ExternalServiceError('Database error while deleting user AI key', ErrorReason.DATABASE_ERROR, 503, { 
+        service: 'PostgreSQL',
+        operation: 'delete',
+        originalError: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
@@ -76,7 +92,11 @@ export class UserAIKeyRepositoryImpl implements UserAIKeyRepository {
       return result.rows.length > 0;
     } catch (error) {
       logger.error({ userId }, 'Error checking if user AI key exists', error);
-      throw error;
+      throw new ExternalServiceError('Database error while checking user AI key existence', ErrorReason.DATABASE_ERROR, 503, { 
+        service: 'PostgreSQL',
+        operation: 'exists',
+        originalError: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 

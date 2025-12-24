@@ -4,7 +4,12 @@ import { UserMetadata, UserMetadataType, ExecutionContext } from '../../types.js
 import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
 import { MockAgent } from '../agents/implementations/MockAgent.js';
 import { CacheClient } from '../../infrastructure/persistence/RedisConnector.js';
-import { APIError } from '../../utils/errors.js';
+import { 
+  AuthenticationError, 
+  UsageLimitError, 
+  ValidationError, 
+  ErrorReason 
+} from '../../utils/errors.js';
 import { UserAIKeyService } from './UserAIKeyService.js';
 import { UserAIKeyRepositoryImpl } from '../../infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
 
@@ -47,7 +52,7 @@ export class ChatService {
 
     if (!metadata) {
       requestLogger.error('No metadata found in request');
-      return null; // TODO: Handle this case
+      throw new ValidationError('No metadata found in request', ErrorReason.MISSING_METADATA);
     }
 
     let model: string | undefined;
@@ -57,7 +62,7 @@ export class ChatService {
       model = metadata.model;
       if (!apiKey) {
         requestLogger.warn('Custom key requested but not found for user', { userId });
-        throw new APIError('Custom key not found for user', 401);
+        throw new AuthenticationError('Custom key not found for user', ErrorReason.CUSTOM_KEY_NOT_FOUND);
       }
     } else {
       const tokenUsed = await CacheClient.getNumber(userId);
@@ -67,7 +72,10 @@ export class ChatService {
           tokenUsed,
           limit: TOKENS_LIMIT_PER_MONTH
         });
-        throw new APIError('Token limit exceeded', 429);
+        throw new UsageLimitError('Token limit exceeded', ErrorReason.TOKEN_LIMIT_EXCEEDED, {
+          tokenUsed,
+          limit: TOKENS_LIMIT_PER_MONTH
+        });
       }
     }
 
@@ -111,7 +119,7 @@ export class ChatService {
           return this.generalAssistantAgent.streamText(userModelMessages, metadata, context);
         default:
           requestLogger.error('Unknown metadata type', undefined, { type: metadata.type });
-          return null;
+          throw new ValidationError('Unknown metadata type', ErrorReason.UNKNOWN_METADATA_TYPE, { type: metadata.type });
       }
     } catch (error) {
       requestLogger.error('Error processing chat request', error);

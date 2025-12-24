@@ -1,5 +1,5 @@
 import { openai, createOpenAI } from '@ai-sdk/openai';
-import { ModelMessage, streamText } from 'ai';
+import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { ICodeReviewAgent } from '../types/index.js';
 import { proposeCodeTool } from '../tools/CodeTools.js';
 import { PROPMT_CODE_REVIEW_TWO_AGENT } from '../../../utils/prompts.js';
@@ -7,6 +7,7 @@ import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { CodeIntegrationAgent } from './CodeIntegrationAgent.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
+import { searchHederaTool } from '../tools/HederaTools.js';
 
 export class CodeReviewAgent implements ICodeReviewAgent {
   private model: string;
@@ -45,12 +46,14 @@ export class CodeReviewAgent implements ICodeReviewAgent {
         messages,
         system: PROPMT_CODE_REVIEW_TWO_AGENT,
         tools: {
-          proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, context)
-        }
+          proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, context),
+          searchHedera: searchHederaTool()
+        },
+        toolChoice: 'auto',
+        stopWhen: stepCountIs(2),
       });
 
       const tokens = await result.usage;
-
       requestLogger.info('Token usage', {
         tokens_i_o: `${tokens.inputTokens} + ${tokens.outputTokens} = ${tokens.totalTokens}`,
         isCustomKey: Boolean(context.userApiKey),

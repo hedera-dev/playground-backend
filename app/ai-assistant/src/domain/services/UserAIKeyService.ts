@@ -3,7 +3,12 @@ import { UserAIKey, CreateUserAIKeyRequest } from '../entities/UserAIKey.js';
 import { getKmsService } from '../../infrastructure/kms/KmsService.js';
 import { createLogger, AppLogger } from '../../utils/logger.js';
 import OpenAI from 'openai';
-import { APIError } from '../../utils/errors.js';
+import { 
+  ValidationError, 
+  NotFoundError, 
+  ConflictError, 
+  ErrorReason 
+} from '../../utils/errors.js';
 import { isDevelopment, isLocal } from '../../utils/environment.js';
 
 const baseLogger = createLogger();
@@ -33,13 +38,13 @@ export class UserAIKeyService {
     // Validate that the API key is valid before storing it
     const isValid = await this.validateAIKey(apiKey);
     if (!isValid) {
-      throw new APIError('Invalid AI API key', 400);
+      throw new ValidationError('Invalid AI API key', ErrorReason.INVALID_API_KEY);
     }
 
     // Check if a key already exists for this user
     const existingKey = await this.repository.findByUserId(userId);
     if (existingKey) {
-      throw new APIError('User already has an AI key. Delete it first to create a new one.', 400);
+      throw new ConflictError('User already has an AI key. Delete it first to create a new one.', ErrorReason.USER_KEY_ALREADY_EXISTS);
     }
 
     // Encrypt the API key using KMS
@@ -68,7 +73,7 @@ export class UserAIKeyService {
     // Find the encrypted key
     const userKey = await this.repository.findByUserId(userId);
     if (!userKey) {
-      throw new APIError('User AI key not found', 404);
+      throw new NotFoundError('User AI key not found', ErrorReason.USER_KEY_NOT_FOUND);
     }
 
     // Decrypt using KMS
@@ -109,7 +114,7 @@ export class UserAIKeyService {
   async getKeyInfo(userId: string): Promise<UserAIKey> {
     const key = await this.repository.findByUserId(userId);
     if (!key) {
-      throw new APIError('User AI key not found', 404);
+      throw new NotFoundError('User AI key not found', ErrorReason.USER_KEY_NOT_FOUND);
     }
     return key;
   }
@@ -127,17 +132,36 @@ export class UserAIKeyService {
    * Validates that an AI API key is valid by making an API call
    * @param apiKey - API key to validate
    * @returns true if the key is valid
+   * @throws ValidationError if the key is invalid
    */
   private async validateAIKey(apiKey: string): Promise<boolean> {
     if (isDevelopment || isLocal) {
       return true;
     }
 
+    try {
     const openai = new OpenAI({ apiKey });
 
     // Make a simple call to verify the key
     await openai.models.list();
 
     return true;
+    } catch (error: any) {
+      baseLogger.warn('OpenAI API key validation failed', { 
+        error: error?.message,
+        status: error?.status,
+        type: error?.type 
+      });
+      
+      // OpenAI SDK throws errors with status codes
+      if (error?.status === 401) {
+        throw new ValidationError('Invalid OpenAI API key', ErrorReason.INVALID_API_KEY);
+      }
+      
+      // Other errors (rate limits, network issues, etc.)
+      throw new ValidationError('Unable to validate OpenAI API key', ErrorReason.INVALID_API_KEY, {
+        originalError: error?.message || 'Unknown error'
+      });
+    }
   }
 }

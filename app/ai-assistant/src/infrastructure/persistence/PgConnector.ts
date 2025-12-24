@@ -50,14 +50,14 @@ export class PgConnector {
     });
 
     // Log when a client connects
-    this.pool.on('connect', () => {
-      logger.debug('New client connected to PostgreSQL');
-    });
+    // this.pool.on('connect', () => {
+    //   logger.debug('New client connected to PostgreSQL');
+    // });
 
-    // Log when a client disconnects
-    this.pool.on('remove', () => {
-      logger.debug('Client disconnected from PostgreSQL');
-    });
+    // // Log when a client disconnects
+    // this.pool.on('remove', () => {
+    //   logger.debug('Client disconnected from PostgreSQL');
+    // });
 
     // Test connection
     try {

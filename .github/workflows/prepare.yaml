@@ -1,0 +1,30 @@
+name: Install infrastructure tools
+
+on:
+  workflow_call:
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.18.1/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Cache Helm Binary
+        id: cache-helm
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/helm
+          key: ${{ runner.os }}-helm-v3
+          restore-keys: |
+            ${{ runner.os }}-helm-
+
+      - name: Install Helm if not cached
+        if: steps.cache-helm.outputs.cache-hit != 'true'
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash

@@ -30,7 +30,11 @@ export interface StreamingEvent {
   content?: string;
   messageId?: string;
   conversationId?: string;
-  error?: string;
+  error?: {
+    reason: string;
+    message: string;
+    details?: any;
+  };
   metadata?: {
     model?: string;
     finishReason?: string;

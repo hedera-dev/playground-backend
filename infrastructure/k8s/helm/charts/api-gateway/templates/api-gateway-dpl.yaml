@@ -70,6 +70,8 @@ spec:
             items:
               - key: 400.json
                 path: 400.json
+              - key: 401.json
+                path: 401.json
               - key: 403.json
                 path: 403.json
               - key: 408.json
