@@ -71,27 +71,27 @@ jobs:
         if: ${{ github.ref != 'refs/heads/main' }}
         run: |
           echo "Restarting deployment.."
-          kubectl rollout restart deployment ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}
+          kubectl rollout restart deployment ${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl
 
-      - name: Waiting for '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' Pods to be Ready
+      - name: Waiting for '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl' Pods to be Ready
         run: |
-          echo "Waiting for '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' pods to be in 'Running' state..."
+          echo "Waiting for '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl' pods to be in 'Running' state..."
           for i in {1..6}; do
-            NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep '^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' | tail -n 1 | awk '{print $1}')
+            NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep '^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl' | tail -n 1 | awk '{print $1}')
             POD_STATUS=$(kubectl get pod $NEW_POD --no-headers | awk '{print $3}')
             
             if [[ "$POD_STATUS" == "Running" ]]; then
-              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' pod ($NEW_POD) is running"
+              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl' pod ($NEW_POD) is running"
               break
             else
-              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' pod ($NEW_POD) is still in state $POD_STATUS. Retrying in 10 seconds..."
+              echo "New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl' pod ($NEW_POD) is still in state $POD_STATUS. Retrying in 10 seconds..."
               sleep 10
             fi
           done
 
-      - name: Get Logs from New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' Pod
+      - name: Get Logs from New '${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl' Pod
         run: |
-          NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep '^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}' | tail -n 1 | awk '{print $1}')
+          NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep '^${{vars.HELM_RELEASE_PREFIX}}${{env.HELM_RELEASE_SUFFIX}}-${{env.CHART_NAME}}-dpl' | tail -n 1 | awk '{print $1}')
           echo "Fetching logs for the new pod: $NEW_POD"
           kubectl logs $NEW_POD
 
