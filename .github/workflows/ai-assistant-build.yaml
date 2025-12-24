@@ -33,7 +33,7 @@ jobs:
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
           workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
-          service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+          service_account: ${{ vars.GCP_GITHUB_ACTIONS_SERVICE_ACCOUNT }}
 
       - name: "Set up Cloud SDK"
         if: ${{ github.ref == 'refs/heads/master' }}
