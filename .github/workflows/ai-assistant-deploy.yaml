@@ -7,7 +7,7 @@ on:
         description: "Docker image tag"
         required: true
         default: "latest"
-
+        type: string
 jobs:
   infra-tools:
     uses: ./.github/workflows/prepare.yaml
@@ -38,13 +38,16 @@ jobs:
           yq eval ".env.GENERAL_ASSISTANT_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.EXECUTION_ANALYZER_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.TOKENS_LIMIT_PER_MONTH = \"${{ vars.AI_ASSISTANT_TOKENS_LIMIT_PER_MONTH }}\"" -i ./k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-
-
       - name: Configure Google Cloud Auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
           service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+          
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v2"
+        with:
+          version: ">= 363.0.0"
 
       - id: get-credentials
         name: Get GKE credentials

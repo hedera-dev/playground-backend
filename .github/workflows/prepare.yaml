@@ -1,43 +1,36 @@
-name: "Infra install"
-description: "Install yq, kubectl and helm (with caching)"
+name: Install infrastructure tools
 
-runs:
-  using: "composite"
-  steps:
-    - name: Install yq
-      shell: bash
-      run: |
-        sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.18.1/yq_linux_amd64
-        sudo chmod +x /usr/local/bin/yq
+on:
+  workflow_call:
 
-    - name: Cache kubectl binary
-      id: cache-kubectl
-      uses: actions/cache@v3
-      with:
-        path: /usr/local/bin/kubectl
-        key: ${{ runner.os }}-kubectl-v1.33.0
-        restore-keys: |
-          ${{ runner.os }}-kubectl-
+jobs:
+  prepare:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    environment: ${{ 
+      github.ref == 'refs/heads/master' && 'production' || 
+      'develop' }}
+    name: Prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Install kubectl if not cached
-      if: steps.cache-kubectl.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        curl -LO https://dl.k8s.io/release/v1.33.0/bin/linux/amd64/kubectl
-        sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-        kubectl version --client
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.18.1/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
-    - name: Cache helm binary
-      id: cache-helm
-      uses: actions/cache@v3
-      with:
-        path: /usr/local/bin/helm
-        key: ${{ runner.os }}-helm-v3
-        restore-keys: |
-          ${{ runner.os }}-helm-
+      - name: Cache Helm Binary
+        id: cache-helm
+        uses: actions/cache@v3
+        with:
+          path: /usr/local/bin/helm
+          key: ${{ runner.os }}-helm-v3
+          restore-keys: |
+            ${{ runner.os }}-helm-
 
-    - name: Install helm if not cached
-      if: steps.cache-helm.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - name: Install Helm if not cached
+        if: steps.cache-helm.outputs.cache-hit != 'true'
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
