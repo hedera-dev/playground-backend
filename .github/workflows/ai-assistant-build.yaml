@@ -79,7 +79,7 @@ jobs:
       DOCKERFILE_PATH: ./app/ai-assistant/.
       GIT_TAG: ai-assistant-v${{ github.event.inputs.version }}
     permissions:
-      contents: "read"
+      contents: "write"
       id-token: "write"
 
     steps:
