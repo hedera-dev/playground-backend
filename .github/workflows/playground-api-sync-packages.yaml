@@ -1,0 +1,232 @@
+name: Sync Language Packages From develop to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_packages:
+        description: 'Sync packages to production (if false, only check differences)'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  get-dev-metadata:
+    name: Get Dev Packages Metadata
+    runs-on: ubuntu-latest
+    environment: develop
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    env:
+      DEV_BUCKET_NAME: playground_pkgs_dev
+    outputs:
+      packages_metadata: ${{ steps.get-metadata.outputs.metadata }}
+      packages_list: ${{ steps.get-metadata.outputs.packages }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+
+    - name: Authenticate to Google Cloud (Dev)
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
+        service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+
+    - name: Get packages metadata from dev
+      id: get-metadata
+      run: |
+        echo "Getting packages from dev bucket..."
+        echo "Dev bucket: gs://${{ env.DEV_BUCKET_NAME }} (Project: ${{ vars.GCP_PROJECT_ID }})"
+        echo ""
+        
+        # List all .pkg.tar.gz files in the bucket
+        PACKAGE_FILES=$(gcloud storage ls --project=${{ vars.GCP_PROJECT_ID }} "gs://${{ env.DEV_BUCKET_NAME }}/*.pkg.tar.gz" 2>/dev/null | xargs -n1 basename || echo "")
+        
+        if [ -z "$PACKAGE_FILES" ]; then
+          echo "⚠️  No .pkg.tar.gz files found in dev bucket"
+          echo "metadata={}" >> $GITHUB_OUTPUT
+          echo "packages=" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        echo "Found packages:"
+        echo "$PACKAGE_FILES"
+        echo ""
+        
+        METADATA_JSON="{"
+        FIRST=true
+        PACKAGES_LIST=""
+        
+        for PACKAGE in $PACKAGE_FILES; do
+          DEV_FILE="gs://${{ env.DEV_BUCKET_NAME }}/$PACKAGE"
+          
+          echo "📦 Getting metadata for: $PACKAGE"
+          DEV_METADATA=$(gcloud storage ls -L --project=${{ vars.GCP_PROJECT_ID }} $DEV_FILE)
+          DEV_HASH=$(echo "$DEV_METADATA" | grep -oP 'Hash \(md5\):\s+\K\S+')
+          DEV_SIZE=$(echo "$DEV_METADATA" | grep -oP 'Content-Length:\s+\K\d+')
+          
+          if [ "$FIRST" = true ]; then
+            FIRST=false
+            PACKAGES_LIST="$PACKAGE"
+          else
+            METADATA_JSON="$METADATA_JSON,"
+            PACKAGES_LIST="$PACKAGES_LIST $PACKAGE"
+          fi
+          
+          METADATA_JSON="$METADATA_JSON\"$PACKAGE\":{\"hash\":\"$DEV_HASH\",\"size\":\"$DEV_SIZE\"}"
+          echo "  Hash: $DEV_HASH, Size: $DEV_SIZE bytes"
+        done
+        
+        METADATA_JSON="$METADATA_JSON}"
+        echo "metadata=$METADATA_JSON" >> $GITHUB_OUTPUT
+        echo "packages=$PACKAGES_LIST" >> $GITHUB_OUTPUT
+        echo ""
+        echo "Metadata collected successfully for $(echo $PACKAGES_LIST | wc -w) packages"
+
+  sync-to-production:
+    name: ${{ github.event.inputs.sync_packages == 'true' && 'Sync to Production' || 'Check Production Status' }}
+    runs-on: ubuntu-latest
+    needs: get-dev-metadata
+    environment: production
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    env:
+      DEV_BUCKET_NAME: playground_pkgs_dev
+      PROD_BUCKET_NAME: playground_pkgs
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        version: '>= 363.0.0'
+
+    - name: Authenticate to Google Cloud (Prod)
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
+        service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+
+    - name: Check and sync packages
+      run: |
+        if [ "${{ github.event.inputs.sync_packages }}" = "true" ]; then
+          echo "🔄 Mode: SYNC - Packages will be synchronized to production"
+        else
+          echo "🔍 Mode: CHECK ONLY - No packages will be synchronized"
+        fi
+        echo ""
+        echo "Dev bucket: gs://${{ env.DEV_BUCKET_NAME }}"
+        echo "Prod bucket: gs://${{ env.PROD_BUCKET_NAME }} (Project: ${{ vars.GCP_PROJECT_ID }})"
+        echo ""
+        
+        SYNCED_COUNT=0
+        SKIPPED_COUNT=0
+        MISSING_COUNT=0
+        NEEDS_SYNC_COUNT=0
+        
+        # Get packages list and metadata from previous job
+        PACKAGES="${{ needs.get-dev-metadata.outputs.packages_list }}"
+        METADATA='${{ needs.get-dev-metadata.outputs.packages_metadata }}'
+        
+        if [ -z "$PACKAGES" ]; then
+          echo "⚠️  No packages found in dev bucket"
+          exit 0
+        fi
+        
+        echo "Processing $(echo $PACKAGES | wc -w) packages..."
+        echo ""
+        
+        for PACKAGE in $PACKAGES; do
+          echo "=========================================="
+          echo "Processing: $PACKAGE"
+          echo "=========================================="
+          
+          DEV_FILE="gs://${{ env.DEV_BUCKET_NAME }}/$PACKAGE"
+          PROD_FILE="gs://${{ env.PROD_BUCKET_NAME }}/$PACKAGE"
+          
+          # Extract dev metadata from JSON
+          DEV_HASH=$(echo "$METADATA" | grep -oP "\"$PACKAGE\":\{\"hash\":\"\\K[^\"]+")
+          DEV_SIZE=$(echo "$METADATA" | grep -oP "\"$PACKAGE\":\{\"hash\":\"[^\"]+\",\"size\":\"\\K[^\"]+")
+          
+          if [ -z "$DEV_HASH" ]; then
+            echo "⚠️  Package not found in dev bucket: $PACKAGE"
+            MISSING_COUNT=$((MISSING_COUNT + 1))
+            echo ""
+            continue
+          fi
+          
+          echo "Dev MD5 hash: $DEV_HASH"
+          echo "Dev size: $DEV_SIZE bytes"
+          
+          # Check if package exists in prod bucket
+          if gcloud storage ls --project=${{ vars.GCP_PROJECT_ID }} $PROD_FILE &>/dev/null; then
+            echo "🔍 Getting metadata from prod bucket..."
+            PROD_METADATA=$(gcloud storage ls -L --project=${{ vars.GCP_PROJECT_ID }} $PROD_FILE)
+            PROD_HASH=$(echo "$PROD_METADATA" | grep -oP 'Hash \(md5\):\s+\K\S+')
+            PROD_SIZE=$(echo "$PROD_METADATA" | grep -oP 'Content-Length:\s+\K\d+')
+            echo "Prod MD5 hash: $PROD_HASH"
+            echo "Prod size: $PROD_SIZE bytes"
+            
+            # Compare hashes and sizes
+            if [ "$DEV_HASH" = "$PROD_HASH" ] && [ "$DEV_SIZE" = "$PROD_SIZE" ]; then
+              echo "✅ Package is up to date in production"
+              SKIPPED_COUNT=$((SKIPPED_COUNT + 1))
+            else
+              echo "⚠️  Difference detected!"
+              NEEDS_SYNC_COUNT=$((NEEDS_SYNC_COUNT + 1))
+              
+              if [ "${{ github.event.inputs.sync_packages }}" = "true" ]; then
+                echo "🔄 Syncing to production..."
+                gcloud storage cp $DEV_FILE $PROD_FILE
+                echo "✅ Package synced successfully"
+                SYNCED_COUNT=$((SYNCED_COUNT + 1))
+              else
+                echo "⏭️  Sync skipped (check-only mode)"
+              fi
+            fi
+          else
+            echo "📦 Package not found in production"
+            NEEDS_SYNC_COUNT=$((NEEDS_SYNC_COUNT + 1))
+            
+            if [ "${{ github.event.inputs.sync_packages }}" = "true" ]; then
+              echo "📤 Uploading to production..."
+              gcloud storage cp $DEV_FILE $PROD_FILE
+              echo "✅ Package uploaded successfully"
+              SYNCED_COUNT=$((SYNCED_COUNT + 1))
+            else
+              echo "⏭️  Upload skipped (check-only mode)"
+            fi
+          fi
+          
+          echo ""
+        done
+        
+        echo "=========================================="
+        if [ "${{ github.event.inputs.sync_packages }}" = "true" ]; then
+          echo "Synchronization Summary"
+        else
+          echo "Check Summary (No Sync Performed)"
+        fi
+        echo "=========================================="
+        echo "✅ Up to date: $SKIPPED_COUNT"
+        echo "⚠️  Need sync: $NEEDS_SYNC_COUNT"
+        echo "⚠️  Missing in dev: $MISSING_COUNT"
+        
+        if [ "${{ github.event.inputs.sync_packages }}" = "true" ]; then
+          echo "🔄 Synced: $SYNCED_COUNT"
+        fi
+        echo "=========================================="
+        
+        if [ "${{ github.event.inputs.sync_packages }}" = "false" ] && [ $NEEDS_SYNC_COUNT -gt 0 ]; then
+          echo ""
+          echo "💡 Tip: Run this workflow again with 'sync_packages=true' to synchronize the packages"
+        fi
