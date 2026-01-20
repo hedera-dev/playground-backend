@@ -68,8 +68,30 @@ jobs:
           
           echo "📦 Getting metadata for: $PACKAGE"
           DEV_METADATA=$(gcloud storage ls -L --project=${{ vars.GCP_PROJECT_ID }} $DEV_FILE)
-          DEV_HASH=$(echo "$DEV_METADATA" | grep -oP 'Hash \(md5\):\s+\K\S+')
-          DEV_SIZE=$(echo "$DEV_METADATA" | grep -oP 'Content-Length:\s+\K\d+')
+          
+          # Debug: Show raw metadata
+          echo "Debug - Raw metadata:"
+          echo "$DEV_METADATA"
+          echo "---"
+          
+          # Try different patterns for hash extraction
+          DEV_HASH=$(echo "$DEV_METADATA" | grep -i "Hash (MD5)" | awk '{print $NF}')
+          if [ -z "$DEV_HASH" ]; then
+            DEV_HASH=$(echo "$DEV_METADATA" | grep -i "md5" | awk '{print $NF}')
+          fi
+          
+          # Try different patterns for size extraction
+          DEV_SIZE=$(echo "$DEV_METADATA" | grep -i "Content-Length" | sed -n 's/.*Content-Length:[[:space:]]*\([0-9]*\).*/\1/p')
+          if [ -z "$DEV_SIZE" ]; then
+            DEV_SIZE=$(echo "$DEV_METADATA" | grep -i "size" | grep -o '[0-9]\+' | head -1)
+          fi
+          
+          if [ -z "$DEV_HASH" ] || [ -z "$DEV_SIZE" ]; then
+            echo "❌ Error: Could not extract metadata for $PACKAGE"
+            echo "  Hash: '$DEV_HASH'"
+            echo "  Size: '$DEV_SIZE'"
+            exit 1
+          fi
           
           if [ "$FIRST" = true ]; then
             FIRST=false
@@ -171,8 +193,19 @@ jobs:
           if gcloud storage ls --project=${{ vars.GCP_PROJECT_ID }} $PROD_FILE &>/dev/null; then
             echo "🔍 Getting metadata from prod bucket..."
             PROD_METADATA=$(gcloud storage ls -L --project=${{ vars.GCP_PROJECT_ID }} $PROD_FILE)
-            PROD_HASH=$(echo "$PROD_METADATA" | grep -oP 'Hash \(md5\):\s+\K\S+')
-            PROD_SIZE=$(echo "$PROD_METADATA" | grep -oP 'Content-Length:\s+\K\d+')
+            
+            # Try different patterns for hash extraction
+            PROD_HASH=$(echo "$PROD_METADATA" | grep -i "Hash (MD5)" | awk '{print $NF}')
+            if [ -z "$PROD_HASH" ]; then
+              PROD_HASH=$(echo "$PROD_METADATA" | grep -i "md5" | awk '{print $NF}')
+            fi
+            
+            # Try different patterns for size extraction
+            PROD_SIZE=$(echo "$PROD_METADATA" | grep -i "Content-Length" | sed -n 's/.*Content-Length:[[:space:]]*\([0-9]*\).*/\1/p')
+            if [ -z "$PROD_SIZE" ]; then
+              PROD_SIZE=$(echo "$PROD_METADATA" | grep -i "size" | grep -o '[0-9]\+' | head -1)
+            fi
+            
             echo "Prod MD5 hash: $PROD_HASH"
             echo "Prod size: $PROD_SIZE bytes"
             
