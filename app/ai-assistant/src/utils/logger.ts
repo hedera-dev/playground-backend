@@ -1,35 +1,36 @@
 import pino from 'pino';
-
-// Centralized logger configuration for the entire application
-const isDevelopment = process.env.NODE_ENV !== 'production';
+import { isDevelopment, isLocal } from './environment.js';
 
 // Create single logger instance that serves both Fastify and agents
 export const logger = pino({
   name: 'ai-assistant',
-  level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
-  transport: isDevelopment ? {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      translateTime: 'SYS:standard',
-      ignore: 'pid,hostname'
-    }
-  } : undefined
+  level: process.env.LOG_LEVEL || (isDevelopment || isLocal ? 'debug' : 'info'),
+  transport:
+    isDevelopment || isLocal
+      ? {
+          target: 'pino-pretty',
+          options: {
+            colorize: true,
+            translateTime: 'SYS:standard',
+            ignore: 'pid,hostname'
+          }
+        }
+      : undefined
 });
 
 /**
  * Context information for logging
-*/
+ */
 export interface LogContext {
-  userId?: string;       // User identifier
-  sessionId?: string;    // Session identifier
-  [key: string]: any;    // Additional custom fields
+  userId?: string; // User identifier
+  sessionId?: string; // Session identifier
+  [key: string]: any; // Additional custom fields
 }
 
 /**
  * Generic logger wrapper that adds context and timing to Pino logs
  * Compatible with Fastify and can be used across the application
-*/
+ */
 export class AppLogger {
   private context: LogContext;
   private startTime: number;
@@ -94,18 +95,17 @@ export class AppLogger {
    * Log error level message
    */
   error(message: string, error?: Error | any, additionalContext?: Record<string, any>): void {
-    const errorContext = error ? {
-      error: {
-        message: error.message || String(error),
-        stack: error.stack,
-        ...error
-      }
-    } : {};
+    const errorContext = error
+      ? {
+          error: {
+            message: error.message || String(error),
+            stack: error.stack,
+            ...error
+          }
+        }
+      : {};
 
-    logger.error(
-      this.buildLogObject({ ...errorContext, ...additionalContext }),
-      this.formatMessage(message)
-    );
+    logger.error(this.buildLogObject({ ...errorContext, ...additionalContext }), this.formatMessage(message));
   }
 
   /**

@@ -34,6 +34,10 @@ export class CacheConnector {
     }
   }
 
+  public isConnected(): boolean {
+    return this.client !== null && this.client.status === 'ready';
+  }
+
   public async disconnect(): Promise<void> {
     if (!this.client) return;
     try {
