@@ -13,7 +13,7 @@ jobs:
       contents: 'read'
       id-token: 'write'
     env:
-      DOCKER_COMPOSE_LOCAL_PATH: ./playground-backend/infrastructure/terraform/gcloud/app/templates/playground/docker-compose.yaml
+      DOCKER_COMPOSE_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/docker-compose.yaml
       DOCKER_COMPOSE_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/docker-compose.yaml
       DOCKER_COMPOSE_TEMP_PATH: /tmp/docker-compose-current.yaml
       INSTANCE_GROUP_NAME: rig-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
