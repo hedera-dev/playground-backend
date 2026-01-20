@@ -14,12 +14,13 @@ services:
       LOG_LEVEL: INFO
       MAX_CONCURRENT_JOBS: 100
       MAX_OPEN_FILES: 200
-      OUTPUT_MAX_SIZE: 10240  # 10 KB
+      OUTPUT_MAX_SIZE: 102400  # 100 KB
       PUBLIC_KEY: ca7fd8408500327b40d4da02dbc34881b2a379ccd3913a9d06e810a8fdb66329
       RUN_CPU_TIME: 30000 # 30 seconds
       RUN_MEMORY_LIMIT: 500000000  # 500 MB
       RUN_TIMEOUT: 45000 # 45 seconds
       MAX_FILE_SIZE: 20000000 # 20 MB
+      LIMIT_OVERRIDES: '{"go":{"run_memory_limit":1000000000,"max_open_files":700,"max_file_size":100000000}}' # 1 GB memory, 700 open files, 100 MB file size
     tmpfs:
       - /tmp:exec
 
