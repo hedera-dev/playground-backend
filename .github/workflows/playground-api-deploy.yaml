@@ -67,22 +67,34 @@ jobs:
         gcloud storage cp ${{ env.DOCKER_COMPOSE_LOCAL_PATH }} ${{ env.DOCKER_COMPOSE_REMOTE_PATH }}
         echo "docker-compose.yaml uploaded successfully"
 
-    - name: Start rolling update of instance group
+    # TODO: Uncomment when gcloud rolling-action command leaves beta
+    # Currently requires gcloud beta components which are not available in CI/CD
+    # Run manually with:
+    # gcloud beta compute instance-groups managed rolling-action start-update rig-playground-{env} \
+    #   --project={project-id} \
+    #   --region={region} \
+    #   --type=proactive \
+    #   --max-unavailable=3 \
+    #   --min-ready=0 \
+    #   --minimal-action=replace \
+    #   --replacement-method=substitute \
+    #   --max-surge=3 \
+    #   --version=template=projects/{project-id}/regions/{region}/instanceTemplates/rt-playground-{env},name=0-{timestamp}
+    
+    - name: Rolling update instructions
       run: |
-        echo "Starting rolling update for instance group: ${{ env.INSTANCE_GROUP_NAME }}"
-        
-        TEMPLATE_PATH="projects/${{ vars.GCP_PROJECT_ID }}/regions/${{ vars.GCP_PLAYGROUND_REGION }}/instanceTemplates/${{ env.INSTANCE_TEMPLATE_NAME }}"
-        VERSION_NAME="0-$(date +%s)"
-        
-        gcloud beta compute instance-groups managed rolling-action start-update ${{ env.INSTANCE_GROUP_NAME }} \
-          --project=${{ vars.GCP_PROJECT_ID }} \
-          --region=${{ vars.GCP_PLAYGROUND_REGION }} \
-          --type=proactive \
-          --max-unavailable=${{ env.MAX_UNAVAILABLE }} \
-          --min-ready=${{ env.MIN_READY_SEC }} \
-          --minimal-action=replace \
-          --replacement-method=substitute \
-          --max-surge=${{ env.MAX_SURGE }} \
-          --version=template=${TEMPLATE_PATH},name=${VERSION_NAME}
-        
-        echo "Rolling update started successfully"
+        echo "⚠️  Rolling update must be run manually"
+        echo "The docker-compose.yaml file has been updated in GCS bucket"
+        echo ""
+        echo "To apply changes to the instance group, run the following command:"
+        echo ""
+        echo "gcloud beta compute instance-groups managed rolling-action start-update ${{ env.INSTANCE_GROUP_NAME }} \\"
+        echo "  --project=${{ vars.GCP_PROJECT_ID }} \\"
+        echo "  --region=${{ vars.GCP_PLAYGROUND_REGION }} \\"
+        echo "  --type=proactive \\"
+        echo "  --max-unavailable=${{ env.MAX_UNAVAILABLE }} \\"
+        echo "  --min-ready=${{ env.MIN_READY_SEC }} \\"
+        echo "  --minimal-action=replace \\"
+        echo "  --replacement-method=substitute \\"
+        echo "  --max-surge=${{ env.MAX_SURGE }} \\"
+        echo "  --version=template=projects/${{ vars.GCP_PROJECT_ID }}/regions/${{ vars.GCP_PLAYGROUND_REGION }}/instanceTemplates/${{ env.INSTANCE_TEMPLATE_NAME }},name=0-\$(date +%s)"
