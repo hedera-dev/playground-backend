@@ -1,0 +1,88 @@
+name: Deploy Playground Application
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-vms:
+    environment: ${{ 
+      github.ref == 'refs/heads/master' && 'production' || 
+      'develop' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    env:
+      DOCKER_COMPOSE_LOCAL_PATH: ./playground-backend/infrastructure/terraform/gcloud/app/templates/playground/docker-compose.yaml
+      DOCKER_COMPOSE_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/docker-compose.yaml
+      DOCKER_COMPOSE_TEMP_PATH: /tmp/docker-compose-current.yaml
+      INSTANCE_GROUP_NAME: rig-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
+      INSTANCE_TEMPLATE_NAME: rt-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
+      MAX_UNAVAILABLE: 3
+      MAX_SURGE: 3
+      MIN_READY_SEC: 0
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Checkout playground repository
+      uses: actions/checkout@v4
+      with:
+        repository: 'hedera-dev/playground-backend'  
+        ref: ${{ github.ref }}
+        path: playground-backend
+
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        version: '>= 363.0.0'
+
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
+        service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+
+    - name: Check if docker-compose has changed
+      id: check-compose
+      run: |
+        # Download current file from bucket if it exists
+        if gcloud storage cp ${{ env.DOCKER_COMPOSE_REMOTE_PATH }} ${{ env.DOCKER_COMPOSE_TEMP_PATH }} 2>/dev/null; then
+          # Compare files
+          if diff -q ${{ env.DOCKER_COMPOSE_LOCAL_PATH }} ${{ env.DOCKER_COMPOSE_TEMP_PATH }} > /dev/null; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected in docker-compose.yaml"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in docker-compose.yaml"
+          fi
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "docker-compose.yaml not found in bucket, will upload"
+        fi
+
+    - name: Upload docker-compose file to GCS bucket
+      if: steps.check-compose.outputs.changed == 'true'
+      run: |
+        gcloud storage cp ${{ env.DOCKER_COMPOSE_LOCAL_PATH }} ${{ env.DOCKER_COMPOSE_REMOTE_PATH }}
+        echo "docker-compose.yaml uploaded successfully"
+
+    - name: Start rolling update of instance group
+      run: |
+        echo "Starting rolling update for instance group: ${{ env.INSTANCE_GROUP_NAME }}"
+        
+        TEMPLATE_PATH="projects/${{ vars.GCP_PROJECT_ID }}/regions/${{ vars.GCP_PLAYGROUND_REGION }}/instanceTemplates/${{ env.INSTANCE_TEMPLATE_NAME }}"
+        VERSION_NAME="0-$(date +%s)"
+        
+        gcloud beta compute instance-groups managed rolling-action start-update ${{ env.INSTANCE_GROUP_NAME }} \
+          --project=${{ vars.GCP_PROJECT_ID }} \
+          --region=${{ vars.GCP_PLAYGROUND_REGION }} \
+          --type=proactive \
+          --max-unavailable=${{ env.MAX_UNAVAILABLE }} \
+          --min-ready=${{ env.MIN_READY_SEC }} \
+          --minimal-action=replace \
+          --replacement-method=substitute \
+          --max-surge=${{ env.MAX_SURGE }} \
+          --version=template=${TEMPLATE_PATH},name=${VERSION_NAME}
+        
+        echo "Rolling update started successfully"
