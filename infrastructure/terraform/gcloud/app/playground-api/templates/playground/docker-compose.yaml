@@ -1,6 +1,6 @@
 services:
   playground-api:
-    image: {{ region }}-docker.pkg.dev/{{ project_id }}/playground/playground-api:2.1.0-beta2
+    image: {{ region }}-docker.pkg.dev/{{ project_id }}/playground/playground-api:latest
     container_name: playground-api
     restart: always
     privileged: true
