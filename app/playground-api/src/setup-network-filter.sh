@@ -137,18 +137,40 @@ ip netns list | grep -q $NETNS_NAME && echo "✓ Namespace $NETNS_NAME exists" |
 
 # Verify connectivity from sandbox
 echo "Testing sandbox network connectivity..."
-if ip netns exec $NETNS_NAME ping -c 1 -W 2 ${SUBNET}.1 > /dev/null 2>&1; then
-    echo "✓ Sandbox can reach host gateway"
+# Try ping if available, otherwise check that interfaces are up and have IPs
+if command -v ping &> /dev/null; then
+    if ip netns exec $NETNS_NAME ping -c 1 -W 2 ${SUBNET}.1 > /dev/null 2>&1; then
+        echo "✓ Sandbox can reach host gateway (ping test passed)"
+    else
+        echo "✗ Sandbox cannot reach host gateway (ping failed)"
+    fi
 else
-    echo "✗ Sandbox cannot reach host gateway"
-    echo ""
-    echo "Debug info:"
-    echo "Host routes:"
-    ip route
-    echo ""
-    echo "Sandbox routes:"
-    ip netns exec $NETNS_NAME ip route
-    echo ""
-    echo "Host veth status:"
-    ip link show $VETH_HOST 2>/dev/null || echo "veth-host not found"
+    echo "(ping not available, checking interface status instead)"
+    # Verify host has IP
+    if ip addr show $VETH_HOST | grep -q "${SUBNET}.1"; then
+        echo "✓ Host interface has correct IP"
+    else
+        echo "✗ Host interface missing IP - adding now..."
+        ip addr add ${SUBNET}.1/30 dev $VETH_HOST 2>/dev/null || true
+    fi
+    # Verify sandbox has IP
+    if ip netns exec $NETNS_NAME ip addr show $VETH_SANDBOX | grep -q "${SUBNET}.2"; then
+        echo "✓ Sandbox interface has correct IP"
+    else
+        echo "✗ Sandbox interface missing IP"
+    fi
+    # Check both interfaces are UP
+    if ip link show $VETH_HOST | grep -q "state UP"; then
+        echo "✓ Host interface is UP"
+    else
+        echo "✗ Host interface is DOWN"
+    fi
+    if ip netns exec $NETNS_NAME ip link show $VETH_SANDBOX | grep -q "state UP"; then
+        echo "✓ Sandbox interface is UP"
+    else
+        echo "✗ Sandbox interface is DOWN"
+    fi
 fi
+
+echo ""
+echo "Network filter setup complete."
