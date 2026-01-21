@@ -1,5 +1,5 @@
 #!/bin/bash
-# Network filter for isolate sandbox using iptables with cgroup matching
+# Network filter for isolate sandbox using a dedicated network namespace
 # Only allows user code to connect to Hedera testnet nodes
 
 set -e
@@ -23,10 +23,18 @@ HEDERA_IPS=(
     "35.186.230.203"
 )
 
-# Cgroup path for isolate (relative to cgroup root)
-ISOLATE_CGROUP="isolate"
+NETNS_NAME="sandbox"
+VETH_HOST="veth-host"
+VETH_SANDBOX="veth-sandbox"
+SUBNET="10.200.0"
 
-echo "Setting up iptables network filter for isolate sandbox..."
+echo "Setting up network namespace filter for isolate sandbox..."
+
+# Check if ip command is available
+if ! command -v ip &> /dev/null; then
+    echo "ERROR: iproute2 (ip command) not installed"
+    exit 1
+fi
 
 # Check if iptables is available
 if ! command -v iptables &> /dev/null; then
@@ -34,48 +42,82 @@ if ! command -v iptables &> /dev/null; then
     exit 1
 fi
 
-# Check if cgroup match module is available
-if ! iptables -m cgroup --help 2>&1 | grep -q "path"; then
-    echo "ERROR: iptables cgroup path match not available"
-    echo "Falling back to no network filtering"
-    exit 1
-fi
+# Create network namespace for sandbox
+echo "Creating network namespace: $NETNS_NAME"
+ip netns add $NETNS_NAME 2>/dev/null || true
 
-# Create a custom chain for isolate filtering
-iptables -N ISOLATE_FILTER 2>/dev/null || iptables -F ISOLATE_FILTER
+# Create veth pair to connect host and sandbox namespace
+echo "Creating veth pair..."
+ip link add $VETH_HOST type veth peer name $VETH_SANDBOX 2>/dev/null || true
 
-# Rules for the ISOLATE_FILTER chain
-# Allow established/related connections
-iptables -A ISOLATE_FILTER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+# Move sandbox end to the namespace
+ip link set $VETH_SANDBOX netns $NETNS_NAME 2>/dev/null || true
 
-# Allow loopback
-iptables -A ISOLATE_FILTER -o lo -j ACCEPT
+# Configure host side
+echo "Configuring host side..."
+ip addr add ${SUBNET}.1/30 dev $VETH_HOST 2>/dev/null || true
+ip link set $VETH_HOST up
 
-# Allow DNS (UDP port 53)
-iptables -A ISOLATE_FILTER -p udp --dport 53 -j ACCEPT
+# Configure sandbox side
+echo "Configuring sandbox namespace..."
+ip netns exec $NETNS_NAME ip addr add ${SUBNET}.2/30 dev $VETH_SANDBOX
+ip netns exec $NETNS_NAME ip link set $VETH_SANDBOX up
+ip netns exec $NETNS_NAME ip link set lo up
+ip netns exec $NETNS_NAME ip route add default via ${SUBNET}.1
 
-# Allow connections to Hedera testnet nodes
+# Enable IP forwarding
+echo "Enabling IP forwarding..."
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+# Setup NAT for outgoing traffic from sandbox
+echo "Setting up NAT..."
+iptables -t nat -C POSTROUTING -s ${SUBNET}.0/30 -j MASQUERADE 2>/dev/null || \
+iptables -t nat -A POSTROUTING -s ${SUBNET}.0/30 -j MASQUERADE
+
+# Create FORWARD chain rules for sandbox traffic filtering
+echo "Setting up firewall rules..."
+
+# Allow established connections
+iptables -C FORWARD -s ${SUBNET}.2 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
+iptables -A FORWARD -s ${SUBNET}.2 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+
+# Allow DNS
+iptables -C FORWARD -s ${SUBNET}.2 -p udp --dport 53 -j ACCEPT 2>/dev/null || \
+iptables -A FORWARD -s ${SUBNET}.2 -p udp --dport 53 -j ACCEPT
+
+# Allow Hedera testnet IPs
 for ip in "${HEDERA_IPS[@]}"; do
-    iptables -A ISOLATE_FILTER -d "$ip" -j ACCEPT
+    iptables -C FORWARD -s ${SUBNET}.2 -d "$ip" -j ACCEPT 2>/dev/null || \
+    iptables -A FORWARD -s ${SUBNET}.2 -d "$ip" -j ACCEPT
 done
 
-# Reject everything else with a clear message
-iptables -A ISOLATE_FILTER -j REJECT --reject-with icmp-admin-prohibited
+# Block everything else from sandbox
+iptables -C FORWARD -s ${SUBNET}.2 -j REJECT --reject-with icmp-admin-prohibited 2>/dev/null || \
+iptables -A FORWARD -s ${SUBNET}.2 -j REJECT --reject-with icmp-admin-prohibited
 
-# Hook the filter chain to OUTPUT for isolate cgroup
-# Using --path to match cgroup v2 paths
-iptables -I OUTPUT 1 -m cgroup --path "$ISOLATE_CGROUP" -j ISOLATE_FILTER
+# Allow return traffic to sandbox
+iptables -C FORWARD -d ${SUBNET}.2 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT 2>/dev/null || \
+iptables -A FORWARD -d ${SUBNET}.2 -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-echo "iptables network filter configured successfully"
+echo ""
+echo "Network namespace filter configured successfully!"
+echo "Namespace: $NETNS_NAME"
+echo "Sandbox IP: ${SUBNET}.2"
+echo ""
 echo "Allowed destinations for sandboxed code:"
-echo "  - localhost"
 echo "  - DNS (UDP/53)"
 echo "  - Hedera testnet nodes: ${HEDERA_IPS[*]}"
+echo ""
+echo "To run a command in the sandbox namespace:"
+echo "  ip netns exec $NETNS_NAME <command>"
+echo ""
 
-# Verify rules are loaded
-echo ""
-echo "Current iptables OUTPUT chain:"
-iptables -L OUTPUT -n -v --line-numbers | head -5
-echo ""
-echo "ISOLATE_FILTER chain:"
-iptables -L ISOLATE_FILTER -n -v --line-numbers
+# Verify namespace exists
+echo "Verifying namespace..."
+ip netns list | grep -q $NETNS_NAME && echo "✓ Namespace $NETNS_NAME exists" || echo "✗ Namespace not found"
+
+# Verify connectivity from sandbox
+echo "Testing sandbox network connectivity..."
+ip netns exec $NETNS_NAME ping -c 1 -W 2 ${SUBNET}.1 > /dev/null 2>&1 && \
+    echo "✓ Sandbox can reach host gateway" || \
+    echo "✗ Sandbox cannot reach host gateway"
