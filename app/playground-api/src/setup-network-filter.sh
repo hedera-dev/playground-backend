@@ -1,5 +1,5 @@
 #!/bin/bash
-# Network filter for isolate sandbox using nftables
+# Network filter for isolate sandbox using iptables with cgroup matching
 # Only allows user code to connect to Hedera testnet nodes
 
 set -e
@@ -23,63 +23,50 @@ HEDERA_IPS=(
     "35.186.230.203"
 )
 
-# Build comma-separated IP list for nftables set
-HEDERA_IP_SET=$(IFS=,; echo "${HEDERA_IPS[*]}")
+# Cgroup path for isolate (relative to cgroup root)
+ISOLATE_CGROUP="isolate"
 
-echo "Setting up nftables network filter for isolate sandbox..."
+echo "Setting up iptables network filter for isolate sandbox..."
 
-# Check if nftables is available
-if ! command -v nft &> /dev/null; then
-    echo "ERROR: nftables not installed"
+# Check if iptables is available
+if ! command -v iptables &> /dev/null; then
+    echo "ERROR: iptables not installed"
     exit 1
 fi
 
-# Create nftables ruleset
-# This filters outgoing connections from processes in the isolate cgroup
-nft -f - <<EOF
-#!/usr/sbin/nft -f
+# Check if cgroup match module is available
+if ! iptables -m cgroup --help 2>&1 | grep -q "path"; then
+    echo "ERROR: iptables cgroup path match not available"
+    echo "Falling back to no network filtering"
+    exit 1
+fi
 
-# Flush existing isolate table if exists
-table inet isolate_filter
-delete table inet isolate_filter
+# Create a custom chain for isolate filtering
+iptables -N ISOLATE_FILTER 2>/dev/null || iptables -F ISOLATE_FILTER
 
-# Create new table for isolate filtering
-table inet isolate_filter {
-    # Set of allowed Hedera testnet IPs
-    set hedera_nodes {
-        type ipv4_addr
-        elements = { ${HEDERA_IP_SET} }
-    }
+# Rules for the ISOLATE_FILTER chain
+# Allow established/related connections
+iptables -A ISOLATE_FILTER -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-    chain output {
-        type filter hook output priority 0; policy accept;
-        
-        # Only filter traffic from processes in isolate cgroup hierarchy
-        # The cgroup path check ensures we only affect sandboxed processes
-        socket cgroupv2 level 2 "isolate" jump isolate_filter_chain
-    }
+# Allow loopback
+iptables -A ISOLATE_FILTER -o lo -j ACCEPT
 
-    chain isolate_filter_chain {
-        # Allow established/related connections
-        ct state established,related accept
-        
-        # Allow loopback
-        oifname "lo" accept
-        
-        # Allow DNS (UDP port 53) for hostname resolution
-        udp dport 53 accept
-        
-        # Allow connections to Hedera testnet nodes
-        ip daddr @hedera_nodes accept
-        
-        # Log and reject everything else from isolate processes
-        log prefix "isolate-blocked: " level debug
-        reject with icmp type admin-prohibited
-    }
-}
-EOF
+# Allow DNS (UDP port 53)
+iptables -A ISOLATE_FILTER -p udp --dport 53 -j ACCEPT
 
-echo "nftables network filter configured successfully"
+# Allow connections to Hedera testnet nodes
+for ip in "${HEDERA_IPS[@]}"; do
+    iptables -A ISOLATE_FILTER -d "$ip" -j ACCEPT
+done
+
+# Reject everything else with a clear message
+iptables -A ISOLATE_FILTER -j REJECT --reject-with icmp-admin-prohibited
+
+# Hook the filter chain to OUTPUT for isolate cgroup
+# Using --path to match cgroup v2 paths
+iptables -I OUTPUT 1 -m cgroup --path "$ISOLATE_CGROUP" -j ISOLATE_FILTER
+
+echo "iptables network filter configured successfully"
 echo "Allowed destinations for sandboxed code:"
 echo "  - localhost"
 echo "  - DNS (UDP/53)"
@@ -87,5 +74,8 @@ echo "  - Hedera testnet nodes: ${HEDERA_IPS[*]}"
 
 # Verify rules are loaded
 echo ""
-echo "Current nftables ruleset:"
-nft list table inet isolate_filter
+echo "Current iptables OUTPUT chain:"
+iptables -L OUTPUT -n -v --line-numbers | head -5
+echo ""
+echo "ISOLATE_FILTER chain:"
+iptables -L ISOLATE_FILTER -n -v --line-numbers
