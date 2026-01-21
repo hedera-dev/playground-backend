@@ -146,48 +146,34 @@ class Job {
         let cpu_time_stat = null;
         let wall_time_stat = null;
 
-        // Build isolate arguments
-        const isolateArgs = [
-            '--run',
-            `-b${box.id}`,
-            `--meta=${box.metadata_file_path}`,
-            '--cg',
-            '-s',
-            '-c',
-            '/box/submission',
-            '-e',
-            `--dir=${this.runtime.pkgdir}`,
-            `--dir=/etc:noexec`,
-            `--processes=${this.runtime.max_process_count}`,
-            `--open-files=${this.runtime.max_open_files}`,
-            `--fsize=${Math.floor(this.runtime.max_file_size / 1000)}`,
-            `--wall-time=${timeout / 1000}`,
-            `--time=${cpu_time / 1000}`,
-            `--extra-time=0`,
-            ...(memory_limit >= 0
-                ? [`--cg-mem=${Math.floor(memory_limit / 1000)}`]
-                : []),
-            // When using sandbox network namespace, we need --share-net to inherit
-            // the namespace's network stack (which is already restricted)
-            ...(config.disable_networking ? [] : ['--share-net']),
-            '--',
-            '/bin/bash',
-            path.join(this.runtime.pkgdir, file),
-            ...args,
-        ];
-
-        // If networking is enabled, run isolate inside the restricted sandbox namespace
-        // Otherwise, isolate creates its own empty network namespace (no network access)
-        // Note: sudo is required because changing network namespaces requires CAP_SYS_ADMIN
-        const useNetworkNamespace = !config.disable_networking;
-        const command = useNetworkNamespace ? '/usr/bin/sudo' : ISOLATE_PATH;
-        const commandArgs = useNetworkNamespace 
-            ? ['/usr/bin/ip', 'netns', 'exec', 'sandbox', ISOLATE_PATH, ...isolateArgs]
-            : isolateArgs;
-
         const proc = cp.spawn(
-            command,
-            commandArgs,
+            ISOLATE_PATH,
+            [
+                '--run',
+                `-b${box.id}`,
+                `--meta=${box.metadata_file_path}`,
+                '--cg',
+                '-s',
+                '-c',
+                '/box/submission',
+                '-e',
+                `--dir=${this.runtime.pkgdir}`,
+                `--dir=/etc:noexec`,
+                `--processes=${this.runtime.max_process_count}`,
+                `--open-files=${this.runtime.max_open_files}`,
+                `--fsize=${Math.floor(this.runtime.max_file_size / 1000)}`,
+                `--wall-time=${timeout / 1000}`,
+                `--time=${cpu_time / 1000}`,
+                `--extra-time=0`,
+                ...(memory_limit >= 0
+                    ? [`--cg-mem=${Math.floor(memory_limit / 1000)}`]
+                    : []),
+                ...(config.disable_networking ? [] : ['--share-net']),
+                '--',
+                '/bin/bash',
+                path.join(this.runtime.pkgdir, file),
+                ...args,
+            ],
             {
                 env: {
                     ...this.runtime.env_vars,
