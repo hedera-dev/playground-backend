@@ -178,10 +178,11 @@ class Job {
 
         // If networking is enabled, run isolate inside the restricted sandbox namespace
         // Otherwise, isolate creates its own empty network namespace (no network access)
+        // Note: sudo is required because changing network namespaces requires CAP_SYS_ADMIN
         const useNetworkNamespace = !config.disable_networking;
-        const command = useNetworkNamespace ? '/usr/bin/ip' : ISOLATE_PATH;
+        const command = useNetworkNamespace ? '/usr/bin/sudo' : ISOLATE_PATH;
         const commandArgs = useNetworkNamespace 
-            ? ['netns', 'exec', 'sandbox', ISOLATE_PATH, ...isolateArgs]
+            ? ['/usr/bin/ip', 'netns', 'exec', 'sandbox', ISOLATE_PATH, ...isolateArgs]
             : isolateArgs;
 
         const proc = cp.spawn(
