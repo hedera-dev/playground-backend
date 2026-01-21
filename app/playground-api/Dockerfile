@@ -12,12 +12,14 @@ RUN apt-get update && \
 FROM buildpack-deps:bookworm@sha256:4c37ab5f6f0d007c4d897ee58ae3abd40dbdf6ad8d18d9b347cf32e072b57607 AS ebpf-builder
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        clang llvm libbpf-dev linux-headers-generic && \
+        clang llvm libbpf-dev linux-headers-amd64 linux-libc-dev && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /ebpf
 COPY ebpf/network_filter.c ./
-RUN clang -O2 -target bpf -c network_filter.c -o network_filter.o
+RUN clang -O2 -target bpf -D__TARGET_ARCH_x86 \
+    -I/usr/include/x86_64-linux-gnu \
+    -c network_filter.c -o network_filter.o
 
 FROM node:22.16.0-bookworm-slim@sha256:1471ea646673136b8308550ac14b36d847ffb21c24bc31828279e443c924e488
 

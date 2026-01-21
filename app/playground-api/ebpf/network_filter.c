@@ -3,11 +3,35 @@
 // Only allows connections to Hedera testnet nodes
 
 #include <linux/bpf.h>
-#include <linux/if_ether.h>
-#include <linux/ip.h>
-#include <linux/in.h>
 #include <bpf/bpf_helpers.h>
-#include <bpf/bpf_endian.h>
+
+// Minimal definitions to avoid complex header dependencies
+#define ETH_P_IP 0x0800
+#define IPPROTO_TCP 6
+#define IPPROTO_UDP 17
+
+struct ethhdr {
+    unsigned char h_dest[6];
+    unsigned char h_source[6];
+    unsigned short h_proto;
+} __attribute__((packed));
+
+struct iphdr {
+    unsigned char ihl:4;
+    unsigned char version:4;
+    unsigned char tos;
+    unsigned short tot_len;
+    unsigned short id;
+    unsigned short frag_off;
+    unsigned char ttl;
+    unsigned char protocol;
+    unsigned short check;
+    unsigned int saddr;
+    unsigned int daddr;
+} __attribute__((packed));
+
+#define bpf_htons(x) __builtin_bswap16(x)
+#define bpf_ntohl(x) __builtin_bswap32(x)
 
 // Hedera testnet node IPs (in network byte order)
 static const __u32 hedera_ips[] = {
