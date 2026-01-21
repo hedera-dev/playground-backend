@@ -8,19 +8,6 @@ RUN apt-get update && \
     make -j$(nproc) install && \
     rm -rf /tmp/*
 
-# Stage for building eBPF program
-FROM buildpack-deps:bookworm@sha256:4c37ab5f6f0d007c4d897ee58ae3abd40dbdf6ad8d18d9b347cf32e072b57607 AS ebpf-builder
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        clang llvm libbpf-dev linux-headers-amd64 linux-libc-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /ebpf
-COPY ebpf/network_filter.c ./
-RUN clang -O2 -target bpf -D__TARGET_ARCH_x86 \
-    -I/usr/include/x86_64-linux-gnu \
-    -c network_filter.c -o network_filter.o
-
 FROM node:22.16.0-bookworm-slim@sha256:1471ea646673136b8308550ac14b36d847ffb21c24bc31828279e443c924e488
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -31,14 +18,13 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends tar coreutils  \
     util-linux binutils build-essential locales \
     libc6-dev libseccomp-dev rename procps python3 \
-    libcap-dev libssl-dev curl ca-certificates libbpf1 bpftool && \
+    libcap-dev libssl-dev curl ca-certificates nftables && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 RUN useradd -M playground
 COPY --from=isolate /usr/local/bin/isolate /usr/local/bin
 COPY --from=isolate /usr/local/etc/isolate /usr/local/etc/isolate
-COPY --from=ebpf-builder /ebpf/network_filter.o /usr/local/lib/bpf/network_filter.o
 
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 

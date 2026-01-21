@@ -26,9 +26,9 @@ echo 1 > init/cgroup.procs && \
 echo '+cpuset +memory' > cgroup.subtree_control && \
 echo "Initialized cgroup"
 
-# Load eBPF network filter for isolate sandbox
-# This allows user namespace (-s flag) to work while still controlling network access
-/playground-api/src/load-ebpf.sh || echo "WARNING: eBPF filter not loaded, network filtering disabled"
+# Setup network filtering for isolate sandbox
+# Only allows sandboxed code to connect to Hedera testnet nodes
+/playground-api/src/setup-network-filter.sh || echo "WARNING: Network filter not configured, sandboxed code may have unrestricted network access"
 
 chown -R playground:playground /pkgs_manager && \
 exec su -- playground -c 'ulimit -n 65536 && node /playground-api/src'
