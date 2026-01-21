@@ -153,13 +153,12 @@ class Job {
                 `-b${box.id}`,
                 `--meta=${box.metadata_file_path}`,
                 '--cg',
-                '-s', // User namespace enabled (works with cgroup-based iptables filtering)
+                '-s',
                 '-c',
                 '/box/submission',
                 '-e',
                 `--dir=${this.runtime.pkgdir}`,
                 `--dir=/etc:noexec`,
-                `--dir=/etc/resolv.conf`, // Allow DNS resolution
                 `--processes=${this.runtime.max_process_count}`,
                 `--open-files=${this.runtime.max_open_files}`,
                 `--fsize=${Math.floor(this.runtime.max_file_size / 1000)}`,
@@ -183,24 +182,6 @@ class Job {
                 stdio: 'pipe',
             }
         );
-
-        // Add isolate process to network filtering cgroup for iptables matching
-        if (!config.disable_networking) {
-            const isolate_net_cgroup = '/sys/fs/cgroup/isolate_net';
-            try {
-                await fs.appendFile(
-                    `${isolate_net_cgroup}/cgroup.procs`,
-                    `${proc.pid}\n`
-                );
-                this.logger.debug(
-                    `Added isolate process ${proc.pid} to network filtering cgroup`
-                );
-            } catch (e) {
-                this.logger.error(
-                    `Failed to add process to network filtering cgroup: ${e.message}`
-                );
-            }
-        }
 
         if (event_bus === null) {
             proc.stdin.write(this.stdin);
