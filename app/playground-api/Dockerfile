@@ -38,7 +38,7 @@ RUN ./install_package.sh "node" "22.16.0" "https://storage.googleapis.com/playgr
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get remove --purge -y libkrb5-3 libk5crypto3 libkrb5support0 libgssapi-krb5-2 libexpat1 && \
-    apt-get install -y --no-install-recommends g++ g++-12 libc6-dev libstdc++-12-dev && \
+    apt-get install -y --no-install-recommends g++ g++-12 libc6-dev libstdc++-12-dev iptables iproute2 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /playground-api
