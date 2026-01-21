@@ -2,8 +2,6 @@
 # Network filter for isolate sandbox using a dedicated network namespace
 # Only allows user code to connect to Hedera testnet nodes
 
-set -e
-
 # Hedera testnet node IPs
 HEDERA_IPS=(
     "34.94.106.61"
@@ -42,28 +40,52 @@ if ! command -v iptables &> /dev/null; then
     exit 1
 fi
 
+# Cleanup any existing configuration
+echo "Cleaning up existing configuration..."
+ip netns del $NETNS_NAME 2>/dev/null || true
+ip link del $VETH_HOST 2>/dev/null || true
+
 # Create network namespace for sandbox
 echo "Creating network namespace: $NETNS_NAME"
-ip netns add $NETNS_NAME 2>/dev/null || true
+if ! ip netns add $NETNS_NAME; then
+    echo "ERROR: Failed to create network namespace"
+    exit 1
+fi
 
 # Create veth pair to connect host and sandbox namespace
 echo "Creating veth pair..."
-ip link add $VETH_HOST type veth peer name $VETH_SANDBOX 2>/dev/null || true
+if ! ip link add $VETH_HOST type veth peer name $VETH_SANDBOX; then
+    echo "ERROR: Failed to create veth pair"
+    exit 1
+fi
 
 # Move sandbox end to the namespace
-ip link set $VETH_SANDBOX netns $NETNS_NAME 2>/dev/null || true
+echo "Moving $VETH_SANDBOX to namespace..."
+if ! ip link set $VETH_SANDBOX netns $NETNS_NAME; then
+    echo "ERROR: Failed to move veth to namespace"
+    exit 1
+fi
 
 # Configure host side
-echo "Configuring host side..."
-ip addr add ${SUBNET}.1/30 dev $VETH_HOST 2>/dev/null || true
+echo "Configuring host side ($VETH_HOST = ${SUBNET}.1)..."
+ip addr add ${SUBNET}.1/30 dev $VETH_HOST
 ip link set $VETH_HOST up
 
 # Configure sandbox side
-echo "Configuring sandbox namespace..."
+echo "Configuring sandbox namespace ($VETH_SANDBOX = ${SUBNET}.2)..."
 ip netns exec $NETNS_NAME ip addr add ${SUBNET}.2/30 dev $VETH_SANDBOX
 ip netns exec $NETNS_NAME ip link set $VETH_SANDBOX up
 ip netns exec $NETNS_NAME ip link set lo up
 ip netns exec $NETNS_NAME ip route add default via ${SUBNET}.1
+
+# Show interface status
+echo ""
+echo "Host interface status:"
+ip addr show $VETH_HOST
+echo ""
+echo "Sandbox interface status:"
+ip netns exec $NETNS_NAME ip addr show $VETH_SANDBOX
+echo ""
 
 # Enable IP forwarding
 echo "Enabling IP forwarding..."
@@ -108,16 +130,25 @@ echo "Allowed destinations for sandboxed code:"
 echo "  - DNS (UDP/53)"
 echo "  - Hedera testnet nodes: ${HEDERA_IPS[*]}"
 echo ""
-echo "To run a command in the sandbox namespace:"
-echo "  ip netns exec $NETNS_NAME <command>"
-echo ""
 
 # Verify namespace exists
-echo "Verifying namespace..."
+echo "Verifying configuration..."
 ip netns list | grep -q $NETNS_NAME && echo "✓ Namespace $NETNS_NAME exists" || echo "✗ Namespace not found"
 
 # Verify connectivity from sandbox
 echo "Testing sandbox network connectivity..."
-ip netns exec $NETNS_NAME ping -c 1 -W 2 ${SUBNET}.1 > /dev/null 2>&1 && \
-    echo "✓ Sandbox can reach host gateway" || \
+if ip netns exec $NETNS_NAME ping -c 1 -W 2 ${SUBNET}.1 > /dev/null 2>&1; then
+    echo "✓ Sandbox can reach host gateway"
+else
     echo "✗ Sandbox cannot reach host gateway"
+    echo ""
+    echo "Debug info:"
+    echo "Host routes:"
+    ip route
+    echo ""
+    echo "Sandbox routes:"
+    ip netns exec $NETNS_NAME ip route
+    echo ""
+    echo "Host veth status:"
+    ip link show $VETH_HOST 2>/dev/null || echo "veth-host not found"
+fi
