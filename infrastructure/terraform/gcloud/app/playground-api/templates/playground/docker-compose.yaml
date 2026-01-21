@@ -3,15 +3,17 @@ services:
     image: {{ region }}-docker.pkg.dev/{{ project_id }}/playground/playground-api:2.1.0-beta2
     container_name: playground-api
     restart: always
-    privileged: true
+    privileged: true  # Required for isolate (namespaces, cgroups) and iptables
     ports:
       - "80:2000"
     environment:
       COMPILE_CPU_TIME: 10000 # 10 seconds
       COMPILE_MEMORY_LIMIT: 500000000 # 500 MB
       COMPILE_TIMEOUT: 20000 # 20 seconds
+      # Network access is restricted via iptables in docker-entrypoint.sh
+      # User code (UIDs 1001-1500) can only access Hedera testnet nodes
       DISABLE_NETWORKING: "false"
-      LOG_LEVEL: INFO
+      LOG_LEVEL: DEBUG
       MAX_CONCURRENT_JOBS: 100
       MAX_OPEN_FILES: 200
       OUTPUT_MAX_SIZE: 10240  # 10 KB

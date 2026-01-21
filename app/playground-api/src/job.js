@@ -146,6 +146,10 @@ class Job {
         let cpu_time_stat = null;
         let wall_time_stat = null;
 
+        // Add isolate process to network filtering cgroup for iptables matching
+        // This allows iptables to filter by cgroup instead of UID, which works with user namespaces
+        const isolate_net_cgroup = '/sys/fs/cgroup/isolate_net';
+
         const proc = cp.spawn(
             ISOLATE_PATH,
             [
@@ -153,12 +157,13 @@ class Job {
                 `-b${box.id}`,
                 `--meta=${box.metadata_file_path}`,
                 '--cg',
-                '-s',
+                '-s', // User namespace enabled for better isolation
                 '-c',
                 '/box/submission',
                 '-e',
                 `--dir=${this.runtime.pkgdir}`,
                 `--dir=/etc:noexec`,
+                `--dir=/etc/resolv.conf`, // Allow DNS resolution
                 `--processes=${this.runtime.max_process_count}`,
                 `--open-files=${this.runtime.max_open_files}`,
                 `--fsize=${Math.floor(this.runtime.max_file_size / 1000)}`,
@@ -168,6 +173,7 @@ class Job {
                 ...(memory_limit >= 0
                     ? [`--cg-mem=${Math.floor(memory_limit / 1000)}`]
                     : []),
+                // Network isolation: use shared network with iptables cgroup filtering
                 ...(config.disable_networking ? [] : ['--share-net']),
                 '--',
                 '/bin/bash',
@@ -182,6 +188,24 @@ class Job {
                 stdio: 'pipe',
             }
         );
+
+        // Move the isolate process to the network filtering cgroup
+        // This must be done immediately after spawn, before the process creates any network connections
+        if (!config.disable_networking) {
+            try {
+                await fs.appendFile(
+                    `${isolate_net_cgroup}/cgroup.procs`,
+                    `${proc.pid}\n`
+                );
+                this.logger.debug(
+                    `Added isolate process ${proc.pid} to network filtering cgroup`
+                );
+            } catch (e) {
+                this.logger.error(
+                    `Failed to add process to network filtering cgroup: ${e.message}`
+                );
+            }
+        }
 
         if (event_bus === null) {
             proc.stdin.write(this.stdin);
