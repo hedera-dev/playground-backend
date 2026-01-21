@@ -146,10 +146,6 @@ class Job {
         let cpu_time_stat = null;
         let wall_time_stat = null;
 
-        // Add isolate process to network filtering cgroup for iptables matching
-        // This allows iptables to filter by cgroup instead of UID, which works with user namespaces
-        const isolate_net_cgroup = '/sys/fs/cgroup/isolate_net';
-
         const proc = cp.spawn(
             ISOLATE_PATH,
             [
@@ -157,7 +153,7 @@ class Job {
                 `-b${box.id}`,
                 `--meta=${box.metadata_file_path}`,
                 '--cg',
-                '-s', // User namespace enabled for better isolation
+                '-s', // User namespace enabled (works with cgroup-based iptables filtering)
                 '-c',
                 '/box/submission',
                 '-e',
@@ -173,7 +169,6 @@ class Job {
                 ...(memory_limit >= 0
                     ? [`--cg-mem=${Math.floor(memory_limit / 1000)}`]
                     : []),
-                // Network isolation: use shared network with iptables cgroup filtering
                 ...(config.disable_networking ? [] : ['--share-net']),
                 '--',
                 '/bin/bash',
@@ -189,9 +184,9 @@ class Job {
             }
         );
 
-        // Move the isolate process to the network filtering cgroup
-        // This must be done immediately after spawn, before the process creates any network connections
+        // Add isolate process to network filtering cgroup for iptables matching
         if (!config.disable_networking) {
+            const isolate_net_cgroup = '/sys/fs/cgroup/isolate_net';
             try {
                 await fs.appendFile(
                     `${isolate_net_cgroup}/cgroup.procs`,

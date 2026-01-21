@@ -31,6 +31,11 @@ echo "Initialized cgroup"
 # Uses cgroup matching instead of UID matching to work with isolate's user namespace (-s flag)
 echo "Configuring network restrictions for user code execution..."
 
+# Switch to iptables-legacy for better cgroup module support
+echo "Switching to iptables-legacy..."
+update-alternatives --set iptables /usr/sbin/iptables-legacy 2>/dev/null || echo "iptables-legacy already set or not available"
+update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy 2>/dev/null || echo "ip6tables-legacy already set or not available"
+
 # Create a dedicated cgroup for isolate network filtering
 ISOLATE_NET_CGROUP="/sys/fs/cgroup/isolate_net"
 mkdir -p "$ISOLATE_NET_CGROUP"
