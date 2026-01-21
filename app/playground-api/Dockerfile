@@ -18,7 +18,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends tar coreutils  \
     util-linux binutils build-essential locales \
     libc6-dev libseccomp-dev rename procps python3 \
-    libcap-dev libssl-dev curl ca-certificates && \
+    libcap-dev libssl-dev curl ca-certificates iptables && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
