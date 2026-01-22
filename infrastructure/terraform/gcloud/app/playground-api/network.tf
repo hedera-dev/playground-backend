@@ -38,7 +38,7 @@ resource "google_compute_firewall" "allow_health_check" {
     ports    = ["80", "443"]
   }
 
-  source_ranges = ["35.191.0.0/16", "34.172.226.0"]
+  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
   source_tags             = null
   source_service_accounts = null
   target_tags             = null

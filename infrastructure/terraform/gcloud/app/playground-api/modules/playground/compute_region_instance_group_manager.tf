@@ -3,7 +3,6 @@ resource "google_compute_region_instance_group_manager" "rig-playground" {
   region              = var.region
   base_instance_name  = "vm-playground-${var.environment_id}"
   version {
-    name              = "0-1761643714435"
     instance_template = google_compute_region_instance_template.rit-playground.id
   }
 
@@ -19,6 +18,10 @@ resource "google_compute_region_instance_group_manager" "rig-playground" {
     "${var.region}-b",
     "${var.region}-c"
   ]
+
+  lifecycle {
+    ignore_changes = [version[0].name]
+  }
 }
 
 resource "google_compute_region_autoscaler" "autoscaler-playground" {
