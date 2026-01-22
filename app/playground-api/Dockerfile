@@ -35,6 +35,9 @@ RUN ./install_package.sh "java" "21.0.2" "https://storage.googleapis.com/playgro
 RUN ./install_package.sh "node" "22.16.0" "https://storage.googleapis.com/playground_pkgs_dev/node-22.16.0.pkg.tar.gz" "ca5c111c6b49446bbf4e56ee5fe0d8e3a8ce6de081defbdbddfd6be6ee94f0e9"
 RUN ./install_package.sh "rust" "1.85.1" "https://storage.googleapis.com/playground_pkgs_dev/rust-1.85.1.pkg.tar.gz" "9c068349dc1576a1af2a2e98963973497d0c13175655464c785f764844406d83"
 
+# Cambiar el propietario una sola vez durante el build
+RUN chown -R playground:playground /pkgs_manager
+
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get remove --purge -y libkrb5-3 libk5crypto3 libkrb5support0 libgssapi-krb5-2 libexpat1 && \
