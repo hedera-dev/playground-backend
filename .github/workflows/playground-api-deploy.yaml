@@ -1,7 +1,23 @@
-name: Deploy Playground Application
+name: Deploy Playground API
 
 on:
   workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: true
+        default: "latest"
+        type: string
+      log_level:
+        description: "Log level for the application"
+        required: true
+        default: "INFO"
+        type: choice
+        options:
+          - DEBUG
+          - INFO
+          - WARN
+          - ERROR
 
 jobs:
   update-vms:
@@ -16,6 +32,7 @@ jobs:
       DOCKER_COMPOSE_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/docker-compose.yaml
       DOCKER_COMPOSE_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/docker-compose.yaml
       DOCKER_COMPOSE_TEMP_PATH: /tmp/docker-compose-current.yaml
+      DOCKER_COMPOSE_DEPLOY_PATH: /tmp/docker-compose-deploy.yaml
       INSTANCE_GROUP_NAME: rig-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
       INSTANCE_TEMPLATE_NAME: rt-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
       MAX_UNAVAILABLE: 3
@@ -43,13 +60,28 @@ jobs:
         workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
         service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
 
+    - name: Prepare docker-compose with deployment values
+      run: |
+        # Copy template and replace placeholders
+        cp ${{ env.DOCKER_COMPOSE_LOCAL_PATH }} ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        # Replace image tag placeholder
+        sed -i 's|{{ image_tag }}|${{ github.event.inputs.image_tag }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        # Replace log level placeholder
+        sed -i 's|{{ log_level }}|${{ github.event.inputs.log_level }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        echo "Prepared docker-compose.yaml with:"
+        echo "  - Image tag: ${{ github.event.inputs.image_tag }}"
+        echo "  - Log level: ${{ github.event.inputs.log_level }}"
+
     - name: Check if docker-compose has changed
       id: check-compose
       run: |
         # Download current file from bucket if it exists
         if gcloud storage cp ${{ env.DOCKER_COMPOSE_REMOTE_PATH }} ${{ env.DOCKER_COMPOSE_TEMP_PATH }} 2>/dev/null; then
           # Compare files
-          if diff -q ${{ env.DOCKER_COMPOSE_LOCAL_PATH }} ${{ env.DOCKER_COMPOSE_TEMP_PATH }} > /dev/null; then
+          if diff -q ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }} ${{ env.DOCKER_COMPOSE_TEMP_PATH }} > /dev/null; then
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "No changes detected in docker-compose.yaml"
           else
@@ -64,7 +96,7 @@ jobs:
     - name: Upload docker-compose file to GCS bucket
       if: steps.check-compose.outputs.changed == 'true'
       run: |
-        gcloud storage cp ${{ env.DOCKER_COMPOSE_LOCAL_PATH }} ${{ env.DOCKER_COMPOSE_REMOTE_PATH }}
+        gcloud storage cp ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }} ${{ env.DOCKER_COMPOSE_REMOTE_PATH }}
         echo "docker-compose.yaml uploaded successfully"
 
     # TODO: Uncomment when gcloud rolling-action command leaves beta

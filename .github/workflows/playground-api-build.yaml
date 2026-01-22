@@ -131,6 +131,39 @@ jobs:
         run: |
           docker push ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
 
+      - name: Get image digest
+        id: get-digest
+        run: |
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }})
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Image pushed: $DIGEST"
+          
+          # Extract just the digest part (sha256:...)
+          DIGEST_ONLY=$(echo "$DIGEST" | sed 's/.*@//')
+          echo "digest_only=$DIGEST_ONLY" >> $GITHUB_OUTPUT
+          
+          # Create tag@digest format
+          TAG_WITH_DIGEST="${{ github.event.inputs.version }}@$DIGEST_ONLY"
+          echo "tag_with_digest=$TAG_WITH_DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Build Summary
+        run: |
+          echo "## 🐳 Docker Image Built Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** \`${{ github.event.inputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Full Image:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.get-digest.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag + Digest (for deployment):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.get-digest.outputs.tag_with_digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}" >> $GITHUB_STEP_SUMMARY
+
       - name: Create and push a new git tag
         if: ${{ github.event.inputs.set_tag == 'true' && github.event.inputs.version != 'latest' && github.ref != 'refs/heads/master' }}
         run: |
