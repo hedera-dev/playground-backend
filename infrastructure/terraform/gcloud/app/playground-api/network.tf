@@ -38,7 +38,7 @@ resource "google_compute_firewall" "allow_health_check" {
     ports    = ["80", "443"]
   }
 
-  source_ranges = ["35.191.0.0/16", "34.172.226.0"]
+  source_ranges = ["35.191.0.0/16", "130.211.0.0/22"]
   source_tags             = null
   source_service_accounts = null
   target_tags             = null
@@ -103,26 +103,51 @@ resource "google_compute_firewall" "allow_ingress_internal" {
 }
 
 
-resource "google_compute_firewall" "allow_egress_hedera_testnet" {
-  name    = "allow-egress-hedera-testnet-${local.deployment["environment_id"]}"
+# Allow essential egress protocols: HTTP/HTTPS, DNS, and Hedera gRPC
+# This covers all VM operational needs:
+# - DNS resolution (port 53 UDP/TCP)
+# - Package installations (apt, yum via HTTP/HTTPS)
+# - Docker image pulls (Docker Hub, GCR, Artifact Registry via HTTPS)
+# - Google Cloud APIs (HTTPS)
+# - SSL certificates (Let's Encrypt via HTTPS)
+# - Cloud Ops Agent (HTTPS)
+# - Hedera network access (ports 50211, 50212 for testnet/mainnet gRPC connections)
+resource "google_compute_firewall" "allow_egress_essential_ports" {
+  name    = "allow-egress-essential-ports-${local.deployment["environment_id"]}"
   network = google_compute_network.network.id
 
   direction = "EGRESS"
-  priority  = 1000
+  priority  = 1500
 
-  destination_ranges = [
-    "34.94.106.61/32", "50.18.132.211/32", "35.237.119.55/32", 
-    "3.212.6.13/32", "35.245.27.193/32", "52.20.18.86/32", 
-    "34.83.112.116/32", "54.70.192.33/32", "34.94.160.4/32", 
-    "54.176.199.109/32", "34.106.102.218/32", "35.155.49.147/32",
-    "34.133.197.230/32", "52.14.252.207/32", "35.186.230.203/32"
-  ]
+  destination_ranges = ["0.0.0.0/0"]
+  source_tags             = null
+  source_service_accounts = null
+  target_tags             = null
+  target_service_accounts = null
+
+  # HTTP/HTTPS
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  # DNS
+  allow {
+    protocol = "udp"
+    ports    = ["53"]
+  }
 
   allow {
-    protocol = "all"
+    protocol = "tcp"
+    ports    = ["53"]
+  }
+
+  # Hedera gRPC
+  allow {
+    protocol = "tcp"
+    ports    = ["50211", "50212"]
   }
 }
-
 
 resource "google_compute_firewall" "deny_egress_all" {
   name    = "deny-egress-all-${local.deployment["environment_id"]}"

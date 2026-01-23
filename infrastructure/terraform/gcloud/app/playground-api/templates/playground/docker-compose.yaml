@@ -1,6 +1,6 @@
 services:
   playground-api:
-    image: {{ region }}-docker.pkg.dev/{{ project_id }}/playground/playground-api:latest
+    image: {{ region }}-docker.pkg.dev/{{ project_id }}/playground/playground-api:{{ image_tag }}
     container_name: playground-api
     restart: always
     privileged: true
@@ -11,7 +11,7 @@ services:
       COMPILE_MEMORY_LIMIT: 500000000 # 500 MB
       COMPILE_TIMEOUT: 20000 # 20 seconds
       DISABLE_NETWORKING: "false"
-      LOG_LEVEL: INFO
+      LOG_LEVEL: {{ log_level }}
       MAX_CONCURRENT_JOBS: 100
       MAX_OPEN_FILES: 200
       OUTPUT_MAX_SIZE: 102400  # 100 KB
@@ -23,5 +23,14 @@ services:
       LIMIT_OVERRIDES: '{"go":{"run_memory_limit":1000000000,"max_open_files":700,"max_file_size":100000000}}' # 1 GB memory, 700 open files, 100 MB file size
     tmpfs:
       - /tmp:exec
+    networks:
+      playground_net:
+        ipv4_address: 172.20.0.10
 
-
+networks:
+  playground_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1

@@ -25,7 +25,6 @@ mkdir init && \
 echo 1 > init/cgroup.procs && \
 echo '+cpuset +memory' > cgroup.subtree_control && \
 echo "Initialized cgroup" && \
-chown -R playground:playground /pkgs_manager && \
 exec su -- playground -c 'ulimit -n 65536 && node /playground-api/src'
 
 
