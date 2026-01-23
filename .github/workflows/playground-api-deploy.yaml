@@ -172,6 +172,58 @@ jobs:
     #   --max-surge=3 \
     #   --version=template=projects/{project-id}/regions/{region}/instanceTemplates/rt-playground-{env},name=0-{timestamp}
     
+    - name: Deployment Summary
+      run: |
+        echo "## 🚀 Playground API Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image Tag:** \`${{ github.event.inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Log Level:** \`${{ github.event.inputs.log_level }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** \`${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📄 Files Updated in GCS" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check which files were changed
+        if [ "${{ steps.check-compose.outputs.changed }}" == "true" ]; then
+          echo "- ✅ **docker-compose.yaml** - Updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ⚪ **docker-compose.yaml** - No changes" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.check-whitelist.outputs.changed }}" == "true" ]; then
+          echo "- ✅ **hedera-whitelist.txt** - Updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ⚪ **hedera-whitelist.txt** - No changes" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.check-iptables-script.outputs.changed }}" == "true" ]; then
+          echo "- ✅ **setup-iptables.sh** - Updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ⚪ **setup-iptables.sh** - No changes" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ⚠️ Manual Rolling Update Required" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "To apply changes to the instance group, run:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "gcloud beta compute instance-groups managed rolling-action start-update ${{ env.INSTANCE_GROUP_NAME }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --project=${{ vars.GCP_PROJECT_ID }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --region=${{ vars.GCP_PLAYGROUND_REGION }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --type=proactive \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --max-unavailable=${{ env.MAX_UNAVAILABLE }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --min-ready=${{ env.MIN_READY_SEC }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --minimal-action=replace \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --replacement-method=substitute \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --max-surge=${{ env.MAX_SURGE }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --version=template=projects/${{ vars.GCP_PROJECT_ID }}/regions/${{ vars.GCP_PLAYGROUND_REGION }}/instanceTemplates/${{ env.INSTANCE_TEMPLATE_NAME }},name=0-\$(date +%s)" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**GCS Bucket:** \`${{ vars.PLAYGROUND_BUCKET_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+    
     - name: Rolling update instructions
       run: |
         echo "⚠️  Rolling update must be run manually"
