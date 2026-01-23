@@ -124,7 +124,7 @@ jobs:
             docker tag ${{ needs.build_on_main.outputs.develop_image_tag }} ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
           else
             echo "Building image for develop branch"
-            docker build --platform linux/amd64 -t ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} ${{ env.DOCKERFILE_PATH}}
+            docker build --no-cache --platform linux/amd64 -t ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} ${{ env.DOCKERFILE_PATH}}
           fi
 
       - name: Push Docker image to Google Artifact Registry
