@@ -29,10 +29,17 @@ jobs:
       contents: 'read'
       id-token: 'write'
     env:
+      TEMPLATES_LOCAL_DIR: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground
       DOCKER_COMPOSE_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/docker-compose.yaml
       DOCKER_COMPOSE_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/docker-compose.yaml
       DOCKER_COMPOSE_TEMP_PATH: /tmp/docker-compose-current.yaml
       DOCKER_COMPOSE_DEPLOY_PATH: /tmp/docker-compose-deploy.yaml
+      WHITELIST_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/hedera-whitelist.txt
+      WHITELIST_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/hedera-whitelist.txt
+      WHITELIST_TEMP_PATH: /tmp/hedera-whitelist-current.txt
+      IPTABLES_SCRIPT_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/setup-iptables.sh
+      IPTABLES_SCRIPT_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/setup-iptables.sh
+      IPTABLES_SCRIPT_TEMP_PATH: /tmp/setup-iptables-current.sh
       INSTANCE_GROUP_NAME: rig-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
       INSTANCE_TEMPLATE_NAME: rt-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
       MAX_UNAVAILABLE: 3
@@ -71,9 +78,17 @@ jobs:
         # Replace log level placeholder
         sed -i 's|{{ log_level }}|${{ github.event.inputs.log_level }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
         
+        # Replace region placeholder
+        sed -i 's|{{ region }}|${{ vars.GCP_PLAYGROUND_REGION }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        # Replace project_id placeholder
+        sed -i 's|{{ project_id }}|${{ vars.GCP_PROJECT_ID }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
         echo "Prepared docker-compose.yaml with:"
         echo "  - Image tag: ${{ github.event.inputs.image_tag }}"
         echo "  - Log level: ${{ github.event.inputs.log_level }}"
+        echo "  - Region: ${{ vars.GCP_PLAYGROUND_REGION }}"
+        echo "  - Project ID: ${{ vars.GCP_PROJECT_ID }}"
 
     - name: Check if docker-compose has changed
       id: check-compose
@@ -98,6 +113,50 @@ jobs:
       run: |
         gcloud storage cp ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }} ${{ env.DOCKER_COMPOSE_REMOTE_PATH }}
         echo "docker-compose.yaml uploaded successfully"
+
+    - name: Check if hedera-whitelist.txt has changed
+      id: check-whitelist
+      run: |
+        if gcloud storage cp ${{ env.WHITELIST_REMOTE_PATH }} ${{ env.WHITELIST_TEMP_PATH }} 2>/dev/null; then
+          if diff -q ${{ env.WHITELIST_LOCAL_PATH }} ${{ env.WHITELIST_TEMP_PATH }} > /dev/null; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected in hedera-whitelist.txt"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in hedera-whitelist.txt"
+          fi
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "hedera-whitelist.txt not found in bucket, will upload"
+        fi
+
+    - name: Upload hedera-whitelist.txt to GCS bucket
+      if: steps.check-whitelist.outputs.changed == 'true'
+      run: |
+        gcloud storage cp ${{ env.WHITELIST_LOCAL_PATH }} ${{ env.WHITELIST_REMOTE_PATH }}
+        echo "hedera-whitelist.txt uploaded successfully"
+
+    - name: Check if setup-iptables.sh has changed
+      id: check-iptables-script
+      run: |
+        if gcloud storage cp ${{ env.IPTABLES_SCRIPT_REMOTE_PATH }} ${{ env.IPTABLES_SCRIPT_TEMP_PATH }} 2>/dev/null; then
+          if diff -q ${{ env.IPTABLES_SCRIPT_LOCAL_PATH }} ${{ env.IPTABLES_SCRIPT_TEMP_PATH }} > /dev/null; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected in setup-iptables.sh"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in setup-iptables.sh"
+          fi
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "setup-iptables.sh not found in bucket, will upload"
+        fi
+
+    - name: Upload setup-iptables.sh to GCS bucket
+      if: steps.check-iptables-script.outputs.changed == 'true'
+      run: |
+        gcloud storage cp ${{ env.IPTABLES_SCRIPT_LOCAL_PATH }} ${{ env.IPTABLES_SCRIPT_REMOTE_PATH }}
+        echo "setup-iptables.sh uploaded successfully"
 
     # TODO: Uncomment when gcloud rolling-action command leaves beta
     # Currently requires gcloud beta components which are not available in CI/CD

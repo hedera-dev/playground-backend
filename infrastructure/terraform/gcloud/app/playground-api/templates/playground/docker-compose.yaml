@@ -22,3 +22,7 @@ services:
       MAX_FILE_SIZE: 20000000 # 20 MB
     tmpfs:
       - /tmp:exec
+    networks:
+      playground_net:
+        ipv4_address: 172.20.0.10
+

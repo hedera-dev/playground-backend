@@ -1,9 +1,10 @@
 resource "google_compute_region_instance_template" "rit-playground" {
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
+    create_before_destroy = true
   }
 
-  name         = "rt-playground-${var.environment_id}"
+  name_prefix  = "rt-playground-${var.environment_id}-"
   machine_type = "n2d-standard-4"
 
   tags = ["playground"]
@@ -34,6 +35,13 @@ resource "google_compute_region_instance_template" "rit-playground" {
 
   }
 
+  scheduling {
+    automatic_restart   = true
+    on_host_maintenance = "MIGRATE"
+    preemptible         = false
+    provisioning_model  = "STANDARD"
+  }
+
   metadata = {
     ssh-keys = "${var.ssh_user}:${file(var.ssh_keys_file)}"
   }
@@ -49,7 +57,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
 
     # Add Docker's official GPG key:
     sudo apt-get update
-    sudo apt-get install -y ca-certificates curl gnupg
+    sudo apt-get install -y ca-certificates curl gnupg iptables
     sudo install -m 0755 -d /etc/apt/keyrings
     sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     sudo chmod a+r /etc/apt/keyrings/docker.asc
@@ -68,18 +76,18 @@ resource "google_compute_region_instance_template" "rit-playground" {
     sudo docker-credential-gcr configure-docker
     sudo gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
 
-    sudo mkdir /home/docker
+    sudo mkdir -p /home/docker
     cd /home/docker
     
     sudo gsutil cp gs://${var.bucket_templates}/playground/docker-compose.yaml /home/docker/docker-compose.yaml
 
-    sudo chmod 666 docker-compose.yaml
-
-    sudo sed -i 's|{{ region }}|${var.region}|g' /home/docker/docker-compose.yaml
-    sudo sed -i 's|{{ project_id }}|${var.project_id}|g' /home/docker/docker-compose.yaml
-
     # Run docker containers
     sudo docker compose up -d
+
+    # Download and execute iptables setup script
+    sudo gsutil cp gs://${var.bucket_templates}/playground/setup-iptables.sh /usr/local/bin/setup-iptables.sh
+    sudo chmod +x /usr/local/bin/setup-iptables.sh
+    sudo /usr/local/bin/setup-iptables.sh ${var.bucket_templates}
 
   EOT
 }
