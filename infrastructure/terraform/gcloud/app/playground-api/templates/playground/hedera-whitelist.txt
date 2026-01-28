@@ -1,0 +1,83 @@
+# Hedera Network IPs Whitelist
+# One IP per line. Lines starting with # are comments.
+# 
+# To update: upload new version to GCS bucket and restart VMs
+# gsutil cp hedera-whitelist.txt gs://playground-templates-{env}/playground/
+#
+# Last updated: 2026-01-22
+# Sources: 
+#   - Testnet: https://docs.hedera.com/hedera/networks/testnet/testnet-nodes
+#   - Previewnet: GCP firewall rules
+#   - Mirror nodes: Required for SDK operations (getReceipt, queries, transaction status)
+
+# ============================================================
+# TESTNET - Consensus Nodes (gRPC ports: 50211, 50212)
+# ============================================================
+# Node 0 (0.0.3)
+34.94.106.61
+50.18.132.211
+
+# Node 1 (0.0.4)
+35.237.119.55
+3.212.6.13
+
+# Node 2 (0.0.5)
+35.245.27.193
+52.20.18.86
+
+# Node 3 (0.0.6)
+34.83.112.116
+54.70.192.33
+
+# Node 4 (0.0.7)
+34.94.160.4
+54.176.199.109
+
+# Node 5 (0.0.8)
+34.106.102.218
+35.155.49.147
+
+# Node 6 (0.0.9)
+34.133.197.230
+52.14.252.207
+
+# ============================================================
+# TESTNET - Mirror Node
+# ============================================================
+35.186.230.203
+
+# ============================================================
+# PREVIEWNET - Consensus Nodes (gRPC ports: 50211, 50212)
+# ============================================================
+# Node 0
+35.231.208.148
+3.211.248.172
+
+# Node 1
+35.199.15.177
+3.213.213.146
+
+# Node 2
+35.225.201.195
+52.15.105.130
+
+# Node 3
+35.247.109.135
+54.241.38.1
+
+# Node 4
+35.235.65.51
+54.177.51.127
+
+# Node 5
+34.106.247.65
+35.83.89.171
+
+# Node 6
+34.125.23.49
+50.18.17.93
+
+# ============================================================
+# PREVIEWNET - Mirror Node
+# ============================================================
+35.186.250.160

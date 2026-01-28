@@ -1,0 +1,243 @@
+name: Deploy Playground API
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: true
+        default: "latest"
+        type: string
+      log_level:
+        description: "Log level for the application"
+        required: true
+        default: "INFO"
+        type: choice
+        options:
+          - DEBUG
+          - INFO
+          - WARN
+          - ERROR
+
+jobs:
+  update-vms:
+    environment: ${{ 
+      github.ref == 'refs/heads/master' && 'production' || 
+      'develop' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    env:
+      TEMPLATES_LOCAL_DIR: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground
+      DOCKER_COMPOSE_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/docker-compose.yaml
+      DOCKER_COMPOSE_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/docker-compose.yaml
+      DOCKER_COMPOSE_TEMP_PATH: /tmp/docker-compose-current.yaml
+      DOCKER_COMPOSE_DEPLOY_PATH: /tmp/docker-compose-deploy.yaml
+      WHITELIST_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/hedera-whitelist.txt
+      WHITELIST_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/hedera-whitelist.txt
+      WHITELIST_TEMP_PATH: /tmp/hedera-whitelist-current.txt
+      IPTABLES_SCRIPT_LOCAL_PATH: ./infrastructure/terraform/gcloud/app/playground-api/templates/playground/setup-iptables.sh
+      IPTABLES_SCRIPT_REMOTE_PATH: gs://${{ vars.PLAYGROUND_BUCKET_NAME }}/playground/setup-iptables.sh
+      IPTABLES_SCRIPT_TEMP_PATH: /tmp/setup-iptables-current.sh
+      INSTANCE_GROUP_NAME: rig-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
+      INSTANCE_TEMPLATE_NAME: rt-playground-${{ vars.PLAYGROUND_ENVIRONMENT_ID }}
+      MAX_UNAVAILABLE: 3
+      MAX_SURGE: 3
+      MIN_READY_SEC: 0
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Checkout playground repository
+      uses: actions/checkout@v4
+      with:
+        repository: 'hedera-dev/playground-backend'  
+        ref: ${{ github.ref }}
+        path: playground-backend
+
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v2'
+      with:
+        version: '>= 363.0.0'
+
+    - uses: 'google-github-actions/auth@v2'
+      with:
+        workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
+        service_account: ${{ vars.GCP_PLAYGROUND_SERVICE_ACCOUNT }}
+
+    - name: Prepare docker-compose with deployment values
+      run: |
+        # Copy template and replace placeholders
+        cp ${{ env.DOCKER_COMPOSE_LOCAL_PATH }} ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        # Replace image tag placeholder
+        sed -i 's|{{ image_tag }}|${{ github.event.inputs.image_tag }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        # Replace log level placeholder
+        sed -i 's|{{ log_level }}|${{ github.event.inputs.log_level }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        # Replace region placeholder
+        sed -i 's|{{ region }}|${{ vars.GCP_PLAYGROUND_REGION }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        # Replace project_id placeholder
+        sed -i 's|{{ project_id }}|${{ vars.GCP_PROJECT_ID }}|g' ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }}
+        
+        echo "Prepared docker-compose.yaml with:"
+        echo "  - Image tag: ${{ github.event.inputs.image_tag }}"
+        echo "  - Log level: ${{ github.event.inputs.log_level }}"
+        echo "  - Region: ${{ vars.GCP_PLAYGROUND_REGION }}"
+        echo "  - Project ID: ${{ vars.GCP_PROJECT_ID }}"
+
+    - name: Check if docker-compose has changed
+      id: check-compose
+      run: |
+        # Download current file from bucket if it exists
+        if gcloud storage cp ${{ env.DOCKER_COMPOSE_REMOTE_PATH }} ${{ env.DOCKER_COMPOSE_TEMP_PATH }} 2>/dev/null; then
+          # Compare files
+          if diff -q ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }} ${{ env.DOCKER_COMPOSE_TEMP_PATH }} > /dev/null; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected in docker-compose.yaml"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in docker-compose.yaml"
+          fi
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "docker-compose.yaml not found in bucket, will upload"
+        fi
+
+    - name: Upload docker-compose file to GCS bucket
+      if: steps.check-compose.outputs.changed == 'true'
+      run: |
+        gcloud storage cp ${{ env.DOCKER_COMPOSE_DEPLOY_PATH }} ${{ env.DOCKER_COMPOSE_REMOTE_PATH }}
+        echo "docker-compose.yaml uploaded successfully"
+
+    - name: Check if hedera-whitelist.txt has changed
+      id: check-whitelist
+      run: |
+        if gcloud storage cp ${{ env.WHITELIST_REMOTE_PATH }} ${{ env.WHITELIST_TEMP_PATH }} 2>/dev/null; then
+          if diff -q ${{ env.WHITELIST_LOCAL_PATH }} ${{ env.WHITELIST_TEMP_PATH }} > /dev/null; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected in hedera-whitelist.txt"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in hedera-whitelist.txt"
+          fi
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "hedera-whitelist.txt not found in bucket, will upload"
+        fi
+
+    - name: Upload hedera-whitelist.txt to GCS bucket
+      if: steps.check-whitelist.outputs.changed == 'true'
+      run: |
+        gcloud storage cp ${{ env.WHITELIST_LOCAL_PATH }} ${{ env.WHITELIST_REMOTE_PATH }}
+        echo "hedera-whitelist.txt uploaded successfully"
+
+    - name: Check if setup-iptables.sh has changed
+      id: check-iptables-script
+      run: |
+        if gcloud storage cp ${{ env.IPTABLES_SCRIPT_REMOTE_PATH }} ${{ env.IPTABLES_SCRIPT_TEMP_PATH }} 2>/dev/null; then
+          if diff -q ${{ env.IPTABLES_SCRIPT_LOCAL_PATH }} ${{ env.IPTABLES_SCRIPT_TEMP_PATH }} > /dev/null; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes detected in setup-iptables.sh"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in setup-iptables.sh"
+          fi
+        else
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "setup-iptables.sh not found in bucket, will upload"
+        fi
+
+    - name: Upload setup-iptables.sh to GCS bucket
+      if: steps.check-iptables-script.outputs.changed == 'true'
+      run: |
+        gcloud storage cp ${{ env.IPTABLES_SCRIPT_LOCAL_PATH }} ${{ env.IPTABLES_SCRIPT_REMOTE_PATH }}
+        echo "setup-iptables.sh uploaded successfully"
+
+    # TODO: Uncomment when gcloud rolling-action command leaves beta
+    # Currently requires gcloud beta components which are not available in CI/CD
+    # Run manually with:
+    # gcloud beta compute instance-groups managed rolling-action start-update rig-playground-{env} \
+    #   --project={project-id} \
+    #   --region={region} \
+    #   --type=proactive \
+    #   --max-unavailable=3 \
+    #   --min-ready=0 \
+    #   --minimal-action=replace \
+    #   --replacement-method=substitute \
+    #   --max-surge=3 \
+    #   --version=template=projects/{project-id}/regions/{region}/instanceTemplates/rt-playground-{env},name=0-{timestamp}
+    
+    - name: Deployment Summary
+      run: |
+        echo "## 🚀 Playground API Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image Tag:** \`${{ github.event.inputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Log Level:** \`${{ github.event.inputs.log_level }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** \`${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📄 Files Updated in GCS" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check which files were changed
+        if [ "${{ steps.check-compose.outputs.changed }}" == "true" ]; then
+          echo "- ✅ **docker-compose.yaml** - Updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ⚪ **docker-compose.yaml** - No changes" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.check-whitelist.outputs.changed }}" == "true" ]; then
+          echo "- ✅ **hedera-whitelist.txt** - Updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ⚪ **hedera-whitelist.txt** - No changes" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ steps.check-iptables-script.outputs.changed }}" == "true" ]; then
+          echo "- ✅ **setup-iptables.sh** - Updated" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ⚪ **setup-iptables.sh** - No changes" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ⚠️ Manual Rolling Update Required" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "To apply changes to the instance group, run:" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "gcloud beta compute instance-groups managed rolling-action start-update ${{ env.INSTANCE_GROUP_NAME }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --project=${{ vars.GCP_PROJECT_ID }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --region=${{ vars.GCP_PLAYGROUND_REGION }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --type=proactive \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --max-unavailable=${{ env.MAX_UNAVAILABLE }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --min-ready=${{ env.MIN_READY_SEC }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --minimal-action=replace \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --replacement-method=substitute \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --max-surge=${{ env.MAX_SURGE }} \\" >> $GITHUB_STEP_SUMMARY
+        echo "  --version=template=projects/${{ vars.GCP_PROJECT_ID }}/regions/${{ vars.GCP_PLAYGROUND_REGION }}/instanceTemplates/${{ env.INSTANCE_TEMPLATE_NAME }},name=0-\$(date +%s)" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**GCS Bucket:** \`${{ vars.PLAYGROUND_BUCKET_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+    
+    - name: Rolling update instructions
+      run: |
+        echo "⚠️  Rolling update must be run manually"
+        echo "The docker-compose.yaml file has been updated in GCS bucket"
+        echo ""
+        echo "To apply changes to the instance group, run the following command:"
+        echo ""
+        echo "gcloud beta compute instance-groups managed rolling-action start-update ${{ env.INSTANCE_GROUP_NAME }} \\"
+        echo "  --project=${{ vars.GCP_PROJECT_ID }} \\"
+        echo "  --region=${{ vars.GCP_PLAYGROUND_REGION }} \\"
+        echo "  --type=proactive \\"
+        echo "  --max-unavailable=${{ env.MAX_UNAVAILABLE }} \\"
+        echo "  --min-ready=${{ env.MIN_READY_SEC }} \\"
+        echo "  --minimal-action=replace \\"
+        echo "  --replacement-method=substitute \\"
+        echo "  --max-surge=${{ env.MAX_SURGE }} \\"
+        echo "  --version=template=projects/${{ vars.GCP_PROJECT_ID }}/regions/${{ vars.GCP_PLAYGROUND_REGION }}/instanceTemplates/${{ env.INSTANCE_TEMPLATE_NAME }},name=0-\$(date +%s)"
