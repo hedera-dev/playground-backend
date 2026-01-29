@@ -2,7 +2,7 @@
 set -e
 
 WHITELIST_FILE="/etc/hedera-whitelist.txt"
-BUCKET="${1:-playground-templates-dev}"
+BUCKET="${1:-playground-templates-prod}"
 DOCKER_NETWORK_NAME="playground_net"
 DOCKER_SUBNET="172.20.0.0/16"
 
