@@ -4,24 +4,18 @@ import { ChatSession } from '../../../types.js';
 import { UIMessage } from 'ai';
 import { isLocal } from '../../../utils/environment.js';
 import { NotFoundError, ErrorReason } from '../../../utils/errors.js';
+import IChatController from '../ChatController.js';
 
-export class ChatControllerImpl {
+export class ChatControllerImpl implements IChatController {
   private basePath = '/api/playground/assistant';
-  private chatService: ChatService;
   private sessions: Map<string, ChatSession> = new Map();
 
-  constructor(private fastify: FastifyInstance) {
-    this.chatService = new ChatService();
-  }
+  constructor(
+    private fastify: FastifyInstance,
+    private chatService: ChatService
+  ) {}
 
   async registerRoutes(): Promise<void> {
-    if (isLocal) {
-      // Register CORS for dev environment
-      await this.fastify.register((await import('@fastify/cors')).default, {
-        origin: true,
-        credentials: true
-      });
-    }
 
     this.fastify.post(`${this.basePath}/chat`, this.startConversation.bind(this));
     this.fastify.get(`${this.basePath}/chat/history/:conversationId`, this.getConversationHistory.bind(this));

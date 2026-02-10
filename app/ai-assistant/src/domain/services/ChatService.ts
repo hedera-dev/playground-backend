@@ -1,20 +1,18 @@
 import { convertToModelMessages, UIMessage } from 'ai';
 import { createLogger, AppLogger } from '../../utils/logger.js';
 import { UserMetadata, UserMetadataType, ExecutionContext } from '../../types.js';
-import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
+import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents';
 import { MockAgent } from '../agents/implementations/MockAgent.js';
-import { CacheClient } from '../../infrastructure/persistence/RedisConnector.js';
-import { 
-  AuthenticationError, 
-  UsageLimitError, 
-  ValidationError, 
-  ErrorReason 
+import {
+  AuthenticationError,
+  ValidationError,
+  ErrorReason
 } from '../../utils/errors.js';
 import { UserAIKeyService } from './UserAIKeyService.js';
 import { UserAIKeyRepositoryImpl } from '../../infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
+import { TokenUsageService } from './TokenUsageService.js';
 
 const VECTOR_STORE_ID = process.env.VECTOR_STORE_ID || 'vs_688ceeab314c8191a557a849b28cf815';
-const TOKENS_LIMIT_PER_MONTH = Number(process.env.TOKENS_LIMIT_PER_MONTH) || 100000;
 const CODE_REVIEW_MODEL = process.env.CODE_REVIEW_MODEL || 'gpt-4o-mini';
 const CODE_INTEGRATION_MODEL = process.env.CODE_INTEGRATION_MODEL || 'gpt-4o-mini';
 const GENERAL_ASSISTANT_MODEL = process.env.GENERAL_ASSISTANT_MODEL || 'gpt-4o-mini';
@@ -29,6 +27,7 @@ export class ChatService {
   private executionAnalyzerAgent: ExecutionAnalyzerAgent;
   private mockAgent: IMockAgent | null = null;
   private userAIKeyService: UserAIKeyService;
+  private tokenUsageService: TokenUsageService;
 
   constructor() {
     this.mockMode = process.env.ENABLE_MOCK_MODE === 'true';
@@ -38,6 +37,7 @@ export class ChatService {
     this.generalAssistantAgent = new GeneralAssistantAgent(GENERAL_ASSISTANT_MODEL);
     this.executionAnalyzerAgent = new ExecutionAnalyzerAgent(EXECUTION_ANALYZER_MODEL);
     this.userAIKeyService = new UserAIKeyService(new UserAIKeyRepositoryImpl());
+    this.tokenUsageService = new TokenUsageService();
 
     if (this.mockMode) {
       this.mockAgent = new MockAgent();
@@ -65,27 +65,16 @@ export class ChatService {
         throw new AuthenticationError('Custom key not found for user', ErrorReason.CUSTOM_KEY_NOT_FOUND);
       }
     } else {
-      const tokenUsed = await CacheClient.getNumber(userId);
-      requestLogger.debug('Token used', { tokenUsed: tokenUsed, tokenLimit: TOKENS_LIMIT_PER_MONTH });
-      if (Number(tokenUsed) > Number(TOKENS_LIMIT_PER_MONTH)) {
-        requestLogger.error('Token limit exceeded', undefined, {
-          tokenUsed,
-          limit: TOKENS_LIMIT_PER_MONTH
-        });
-        throw new UsageLimitError('Token limit exceeded', ErrorReason.TOKEN_LIMIT_EXCEEDED, {
-          tokenUsed,
-          limit: TOKENS_LIMIT_PER_MONTH
-        });
-      }
+      await this.tokenUsageService.checkUsageLimit(userId);
     }
 
     // Extract user input for logging
     const lastMessage = userMessages[userMessages.length - 1];
     const userInput = lastMessage
       ? lastMessage.parts
-          .filter((part) => part.type === 'text')
-          .map((part) => (part as any).text)
-          .join(' ') || 'No text content'
+        .filter((part) => part.type === 'text')
+        .map((part) => (part as any).text)
+        .join(' ') || 'No text content'
       : 'No content';
 
     requestLogger.info('Processing chat request', {

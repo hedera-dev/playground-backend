@@ -2,6 +2,7 @@ import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { config } from 'dotenv';
 import { ZodError } from 'zod';
 import { ChatControllerImpl } from './application/controllers/impl/ChatControllerImpl.js';
+import { OpenAIProxyControllerImpl } from './application/controllers/impl/OpenAIProxyControllerImpl.js';
 import HealthControllerImpl from './application/controllers/impl/HealthControllerImpl.js';
 import { UserAIKeyControllerImpl } from './application/controllers/impl/UserAIKeyControllerImpl.js';
 import { logger } from './utils/logger.js';
@@ -10,6 +11,8 @@ import { PgClient } from './infrastructure/persistence/PgConnector.js';
 import { initializeKmsService } from './infrastructure/kms/KmsService.js';
 import { UserAIKeyService } from './domain/services/UserAIKeyService.js';
 import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
+import { TokenUsageService } from './domain/services/TokenUsageService.js';
+import { ChatService } from './domain/services/ChatService.js';
 import { APIError, ErrorReason } from './utils/errors.js';
 
 // Load environment variables
@@ -64,10 +67,10 @@ fastify.setErrorHandler((error, request, reply) => {
       message: 'Validation error',
       statusCode: 400,
       details: {
-      errors: error.issues.map((issue) => ({
-        path: issue.path.join('.'),
-        message: issue.message,
-        code: issue.code
+        errors: error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message,
+          code: issue.code
         }))
       },
       timestamp: new Date().toISOString()
@@ -78,10 +81,10 @@ fastify.setErrorHandler((error, request, reply) => {
   if (error instanceof APIError) {
     // Log based on severity
     if (error.statusCode >= 500) {
-    fastify.log.error(error);
-  } else {
-    fastify.log.warn(error);
-  }
+      fastify.log.error(error);
+    } else {
+      fastify.log.warn(error);
+    }
 
     return reply.status(error.statusCode).send(error.toJSON());
   }
@@ -89,12 +92,12 @@ fastify.setErrorHandler((error, request, reply) => {
   // Handle OpenAI API errors from AI SDK
   // Thanks to our onError callback in agents, we now receive the original AI_APICallError
   const openaiError = error as any;
-  
+
   if (openaiError.statusCode && openaiError.data) {
     const errorData = openaiError.data?.error || {};
-    
-    fastify.log.warn({ 
-      statusCode: openaiError.statusCode, 
+
+    fastify.log.warn({
+      statusCode: openaiError.statusCode,
       type: errorData.type,
       code: errorData.code,
       message: openaiError.message,
@@ -143,7 +146,7 @@ fastify.setNotFoundHandler((request, reply) => {
     message: 'Route not found',
     statusCode: 404,
     details: {
-    path: request.url,
+      path: request.url,
       method: request.method
     },
     timestamp: new Date().toISOString()
@@ -177,11 +180,24 @@ async function start() {
       logger.warn(error, 'BYOK feature disabled: KMS initialization failed');
     }
 
+    // Initialize services
+    const chatService = new ChatService();
+    const tokenUsageService = new TokenUsageService();
+    const proxyUserAIKeyRepository = new UserAIKeyRepositoryImpl();
+    const proxyUserAIKeyService = new UserAIKeyService(proxyUserAIKeyRepository);
+
+    // Initialize controllers with dependency injection
     const healthController = new HealthControllerImpl(fastify);
-    const chatController = new ChatControllerImpl(fastify);
+    const chatController = new ChatControllerImpl(fastify, chatService);
+    const openAIProxyController = new OpenAIProxyControllerImpl(
+      fastify,
+      tokenUsageService,
+      proxyUserAIKeyService
+    );
 
     await healthController.registerRoutes();
     await chatController.registerRoutes();
+    await openAIProxyController.registerRoutes();
 
     // Register User Key routes if BYOK is enabled
     if (userAIKeyController) {
@@ -210,6 +226,7 @@ async function start() {
         endpoints: {
           chat: `/api/playground/assistant/chat`,
           history: `/api/playground/assistant/chat/history/:conversationId`,
+          openai: `/api/openai/v1/chat/completions`,
           health: `/api/playground/assistant/health`,
           stats: `/api/stats`,
           userKeys: userAIKeyController ? `/api/playground/assistant/user-ai-key` : 'disabled'
