@@ -1,5 +1,5 @@
+import 'dotenv/config'; // immediate load of environment variables
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { config } from 'dotenv';
 import { ZodError } from 'zod';
 import { ChatControllerImpl } from './application/controllers/impl/ChatControllerImpl.js';
 import { OpenAIProxyControllerImpl } from './application/controllers/impl/OpenAIProxyControllerImpl.js';
@@ -14,9 +14,7 @@ import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/User
 import { TokenUsageService } from './domain/services/TokenUsageService.js';
 import { ChatService } from './domain/services/ChatService.js';
 import { APIError, ErrorReason } from './utils/errors.js';
-
-// Load environment variables
-config();
+import { isLocal } from "./utils/environment";
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -25,6 +23,20 @@ const fastify: FastifyInstance = Fastify({
   loggerInstance: logger as FastifyBaseLogger,
   disableRequestLogging: true // Disable automatic request logging
 });
+
+// Register CORS for local development environment
+if (isLocal) {
+  console.log('Registering CORS for dev environment');
+  await fastify.register((await import('@fastify/cors')).default, {
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      /^http:\/\/localhost:\d+$/
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  });
+}
 
 // Custom request logging with healthcheck filter
 fastify.addHook('onRequest', async (request, reply) => {
@@ -186,9 +198,9 @@ async function start() {
     const proxyUserAIKeyRepository = new UserAIKeyRepositoryImpl();
     const proxyUserAIKeyService = new UserAIKeyService(proxyUserAIKeyRepository);
 
-    // Initialize controllers with dependency injection
+    // Initialize controllers
     const healthController = new HealthControllerImpl(fastify);
-    const chatController = new ChatControllerImpl(fastify, chatService);
+    const chatController = new ChatControllerImpl(fastify);
     const openAIProxyController = new OpenAIProxyControllerImpl(
       fastify,
       tokenUsageService,

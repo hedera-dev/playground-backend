@@ -4,19 +4,17 @@ import { ChatSession } from '../../../types.js';
 import { UIMessage } from 'ai';
 import { isLocal } from '../../../utils/environment.js';
 import { NotFoundError, ErrorReason } from '../../../utils/errors.js';
-import IChatController from '../ChatController.js';
 
-export class ChatControllerImpl implements IChatController {
+export class ChatControllerImpl {
   private basePath = '/api/playground/assistant';
+  private chatService: ChatService;
   private sessions: Map<string, ChatSession> = new Map();
 
-  constructor(
-    private fastify: FastifyInstance,
-    private chatService: ChatService
-  ) {}
+  constructor(private fastify: FastifyInstance) {
+    this.chatService = new ChatService();
+  }
 
   async registerRoutes(): Promise<void> {
-
     this.fastify.post(`${this.basePath}/chat`, this.startConversation.bind(this));
     this.fastify.get(`${this.basePath}/chat/history/:conversationId`, this.getConversationHistory.bind(this));
   }
