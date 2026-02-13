@@ -72,9 +72,8 @@ export class OpenAIProxyService {
             body.stream_options = { include_usage: true };
         }
 
-        // casting `as any` is necessary. OpenAI SDK has overloaded create() signatures but TypeScript
-        // can't properly infer streaming vs non-streaming based on params type alone
-        return await openaiClient.chat.completions.create(body as any, options) as AsyncIterable<any>;
+
+        return await openaiClient.chat.completions.create(body, options) as AsyncIterable<any>;
     }
 
     /**
@@ -115,9 +114,7 @@ export class OpenAIProxyService {
         await this.validateRequest(userId);
         const openaiClient = await this.resolveOpenAIClient(userId);
 
-        // casting `as any` is necessary. OpenAI SDK has overloaded create() signatures but TypeScript
-        // can't properly infer streaming vs non-streaming based on params type alone
-        return await openaiClient.responses.create(body as any, options) as AsyncIterable<any>;
+        return await openaiClient.responses.create(body, options) as AsyncIterable<any>;
     }
 
     /**
