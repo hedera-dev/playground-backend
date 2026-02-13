@@ -13,6 +13,7 @@ import { UserAIKeyService } from './domain/services/UserAIKeyService.js';
 import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
 import { TokenUsageService } from './domain/services/TokenUsageService.js';
 import { ChatService } from './domain/services/ChatService.js';
+import { OpenAIProxyService } from './domain/services/OpenAIProxyService.js';
 import { APIError, ErrorReason } from './utils/errors.js';
 import { isLocal } from "./utils/environment";
 
@@ -31,6 +32,7 @@ if (isLocal) {
     origin: [
       "http://localhost:3000",
       "http://localhost:5173",
+      "http://localhost:4173",
       /^http:\/\/localhost:\d+$/
     ],
     credentials: true,
@@ -198,13 +200,14 @@ async function start() {
     const proxyUserAIKeyRepository = new UserAIKeyRepositoryImpl();
     const proxyUserAIKeyService = new UserAIKeyService(proxyUserAIKeyRepository);
 
+    const openAIProxyService = new OpenAIProxyService(tokenUsageService, proxyUserAIKeyService);
+
     // Initialize controllers
     const healthController = new HealthControllerImpl(fastify);
     const chatController = new ChatControllerImpl(fastify);
     const openAIProxyController = new OpenAIProxyControllerImpl(
       fastify,
-      tokenUsageService,
-      proxyUserAIKeyService
+      openAIProxyService
     );
 
     await healthController.registerRoutes();

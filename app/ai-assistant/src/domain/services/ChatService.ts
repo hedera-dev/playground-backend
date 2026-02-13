@@ -89,7 +89,7 @@ export class ChatService {
       return this.mockAgent?.streamMockResponse();
     }
 
-    const userModelMessages = convertToModelMessages(userMessages);
+    const userModelMessages = await convertToModelMessages(userMessages);
     // Create execution context
     const context: ExecutionContext = {
       userId,

@@ -1,10 +1,15 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { OpenAI } from 'openai';
-import type { ChatCompletionCreateParamsStreaming, ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions';
-import { TokenUsageService } from '../../../domain/services/TokenUsageService.js';
-import { UserAIKeyService } from '../../../domain/services/UserAIKeyService.js';
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type {
+    ChatCompletionCreateParamsNonStreaming,
+    ChatCompletionCreateParamsStreaming
+} from 'openai/resources/chat/completions';
+import type {
+    ResponseCreateParamsNonStreaming,
+    ResponseCreateParamsStreaming
+} from 'openai/resources/responses/responses';
 import { createLogger } from '../../../utils/logger.js';
 import { AuthenticationError, ErrorReason } from '../../../utils/errors.js';
+import { OpenAIProxyService } from '../../../domain/services/OpenAIProxyService.js';
 
 import IOpenAIProxyController from '../OpenAIProxyController.js';
 
@@ -20,25 +25,16 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
     private basePath = '/api/openai/v1';
     /** Logger instance for tracking operations */
     private logger = createLogger(undefined, 'OpenAIProxyController');
-    /** System-wide OpenAI client using a default API key */
-    private readonly systemOpenAI: OpenAI;
 
     /**
      * Initializes the OpenAI proxy controller
      * @param fastify - Fastify server instance for route registration
-     * @param tokenUsageService - Service for tracking and limiting token usage
-     * @param userAIKeyService - Service for managing user-specific API keys
+     * @param openAIProxyService - Service for OpenAI interactions
      */
     constructor(
         private fastify: FastifyInstance,
-        private tokenUsageService: TokenUsageService,
-        private userAIKeyService: UserAIKeyService
-    ) {
-        // Initialize the system-wide OpenAI client with a default API key
-        this.systemOpenAI = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
-    }
+        private openAIProxyService: OpenAIProxyService
+    ) { }
 
     /**
      * Registers API routes for OpenAI proxy endpoints
@@ -51,40 +47,10 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
             `${this.basePath}/chat/completions`,
             this.handleChatCompletion.bind(this)
         );
-        this.fastify.post<{ Body: Record<string, any> }>(
+        this.fastify.post<{ Body: ResponseCreateParamsStreaming | ResponseCreateParamsNonStreaming }>(
             `${this.basePath}/responses`,
             this.handleResponses.bind(this)
         );
-    }
-
-    /**
-     * Resolves which OpenAI client to use for a request
-     * Checks if the user has a custom API key (BYOK), otherwise falls back to system key
-     * @param userId - User identifier to check for custom API key
-     * @returns OpenAI client instance (either user-specific or system-wide)
-     */
-    private async resolveOpenAIClient(userId: string): Promise<OpenAI> {
-        let openaiClient = this.systemOpenAI;
-
-        try {
-            // Check if the user has their own API key configured
-            const hasKey = await this.userAIKeyService.hasKey(userId);
-
-            if (hasKey) {
-                // Use the user's custom API key if available
-                const keyData = await this.userAIKeyService.retrieveKey(userId);
-                openaiClient = new OpenAI({ apiKey: keyData.apiKey });
-                this.logger.debug('Using user BYOK API key for proxy');
-            }
-        } catch (error) {
-            // If key retrieval fails, gracefully fall back to the system key
-            this.logger.warn('Failed to check/retrieve user key, falling back to system key', {
-                userId,
-                error: (error as Error).message
-            });
-        }
-
-        return openaiClient;
     }
 
     /**
@@ -95,6 +61,8 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
         reply.raw.setHeader('Content-Type', 'text/event-stream');
         reply.raw.setHeader('Cache-Control', 'no-cache');
         reply.raw.setHeader('Connection', 'keep-alive');
+        // Prevent buffering in proxies
+        reply.raw.setHeader('X-Accel-Buffering', 'no');
     }
 
     /**
@@ -111,51 +79,69 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
         userId: string,
         model: string
     ): Promise<void> {
+        // Manually hijack the response to handle streaming directly
+        reply.hijack();
         this.setupStreamHeaders(reply);
+
+        // Handle client disconnect
+        // We abort the loop if the client closes the connection
+        let isClientConnected = true;
+
+        const closeHandler = () => {
+            isClientConnected = false;
+            this.logger.debug('Client disconnected during stream', { userId });
+        };
+
+        reply.raw.on('close', closeHandler);
+        // 'aborted' is also possible on some platforms/versions
+        reply.raw.on('error', closeHandler);
 
         let accumulatedUsage: any = null;
 
-        // Stream each chunk to the client
-        for await (const chunk of stream) {
-            // Extract usage data if present in chunk
-            if (chunk.usage || (chunk as any).usage) {
-                accumulatedUsage = chunk.usage || (chunk as any).usage;
+        try {
+            // Stream each chunk to the client
+            for await (const chunk of stream) {
+                if (!isClientConnected) {
+                    break;
+                }
+
+                // Extract usage data if present
+                const usage = this.openAIProxyService.extractUsage(chunk);
+                if (usage) {
+                    accumulatedUsage = usage;
+                }
+
+                // Send chunk as the SSE data event
+                const jsonString = JSON.stringify(chunk);
+                reply.raw.write(`data: ${jsonString}\n\n`);
+
+                // Attempt to flush if method exists (e.g. compression middleware might add it)
+                if (typeof (reply.raw as any).flush === 'function') {
+                    (reply.raw as any).flush();
+                }
             }
 
-            // Send chunk as the SSE data event
-            const jsonString = JSON.stringify(chunk);
-            reply.raw.write(`data: ${jsonString}\n\n`);
-        }
+            if (isClientConnected) {
+                // Send completion signal
+                reply.raw.write('data: [DONE]\n\n');
+                reply.raw.end();
+            }
+        } catch (error) {
+            this.logger.error('Error during streaming', error, { userId });
+            if (isClientConnected) {
+                // Try to write a specific error event if possible, or just end
+                reply.raw.write(`event: error\ndata: ${JSON.stringify({ message: 'Stream error' })}\n\n`);
+                reply.raw.end();
+            }
+        } finally {
+            reply.raw.removeListener('close', closeHandler);
+            reply.raw.removeListener('error', closeHandler);
 
-        // Send completion signal
-        reply.raw.write('data: [DONE]\n\n');
-        reply.raw.end();
-
-        // Track token usage after stream completes
-        await this.trackUsage(userId, model, accumulatedUsage);
-    }
-
-    /**
-     * Records token usage for a request
-     * Supports different token field names from various OpenAI endpoints
-     * @param userId - User identifier for tracking
-     * @param model - Model name used
-     * @param usage - Usage object containing token counts
-     */
-    private async trackUsage(userId: string, model: string, usage: any): Promise<void> {
-        if (usage) {
-            // Handle different token field names across OpenAI endpoints
-            const promptTokens = usage.prompt_tokens || usage.input_tokens || 0;
-            const completionTokens = usage.completion_tokens || usage.output_tokens || 0;
-
-            await this.tokenUsageService.incrementUsage(
-                userId,
-                promptTokens,
-                completionTokens,
-                model
-            );
-        } else {
-            this.logger.warn('No usage data received from OpenAI stream', { userId });
+            // Track token usage after stream completes
+            if (accumulatedUsage) {
+                // Determine model from final chunk or fallback to request model
+                await this.openAIProxyService.trackUsage(userId, model, accumulatedUsage);
+            }
         }
     }
 
@@ -173,6 +159,11 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
         // Re-throw authentication errors to be handled by auth middleware
         if (error instanceof AuthenticationError) {
             throw new AuthenticationError('OpenAI API Error', ErrorReason.EXTERNAL_SERVICE_ERROR);
+        }
+
+        // If headers are already sent, we can't send a JSON response
+        if (reply.raw.headersSent) {
+            return;
         }
 
         // Extract error details with fallbacks
@@ -198,32 +189,20 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
     private async handleResponses(request: FastifyRequest, reply: FastifyReply) {
         // Extract user ID from the header, fallback to 'unknown'
         const userId = (request.headers['x-user-id'] as string) || 'unknown';
-        const body = request.body as Record<string, any>;
+        const body = request.body as ResponseCreateParamsStreaming | ResponseCreateParamsNonStreaming;
 
         this.logger.info('Processing OpenAI proxy request (Responses API)', { userId, model: body.model });
-
-        // Check if a user has exceeded usage limits
-        await this.tokenUsageService.checkUsageLimit(userId);
-
-        // Get the appropriate OpenAI client (user's key or system key)
-        const openaiClient = await this.resolveOpenAIClient(userId);
 
         try {
             const isStreaming = body.stream === true;
 
             if (isStreaming) {
                 // Handle streaming response
-                const stream = await openaiClient.responses.create(body as any) as any;
-                await this.handleStreamingRequest(stream, reply, userId, body.model);
+                const stream = await this.openAIProxyService.createResponseStream(userId, body as ResponseCreateParamsStreaming);
+                return await this.handleStreamingRequest(stream, reply, userId, body.model as string);
             } else {
                 // Handle non-streaming response
-                const response = await openaiClient.responses.create(body as any);
-
-                if (response.usage) {
-                    await this.trackUsage(userId, response.model || body.model, response.usage);
-                }
-
-                return response;
+                return await this.openAIProxyService.createResponse(userId, body as ResponseCreateParamsNonStreaming);
             }
         } catch (error: any) {
             return this.handleOpenAIError(error, reply, 'Responses');
@@ -244,30 +223,15 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
 
         this.logger.info('Processing OpenAI proxy request', { userId, model: body.model });
 
-        // Check if a user has exceeded usage limits
-        await this.tokenUsageService.checkUsageLimit(userId);
-
-        // Get the appropriate OpenAI client (user's key or system key)
-        const openaiClient = await this.resolveOpenAIClient(userId);
-
         try {
             const isStreaming = body.stream === true;
 
             if (isStreaming) {
-                // Enable usage tracking in streaming responses
-                body.stream_options = { include_usage: true };
-                const stream = await openaiClient.chat.completions.create(body) as any;
+                const stream = await this.openAIProxyService.createChatCompletionStream(userId, body as ChatCompletionCreateParamsStreaming);
                 await this.handleStreamingRequest(stream, reply, userId, body.model);
             } else {
                 // Handle non-streaming response
-                const completion = await openaiClient.chat.completions.create(body) as any;
-
-                // Track token usage if available
-                if (completion.usage) {
-                    await this.trackUsage(userId, body.model, completion.usage);
-                }
-
-                return completion;
+                return await this.openAIProxyService.createChatCompletion(userId, body as ChatCompletionCreateParamsNonStreaming);
             }
         } catch (error: any) {
             return this.handleOpenAIError(error, reply, 'Chat Completion');
