@@ -56,11 +56,13 @@ export class OpenAIProxyService {
      * Creates a stream for chat completions
      * @param userId - The user ID making the request
      * @param body - Chat completion parameters with streaming enabled
+     * @param options - Optional request configuration (e.g. AbortSignal)
      * @returns Async iterable stream of chat completion chunks
      */
     async createChatCompletionStream(
         userId: string,
-        body: ChatCompletionCreateParamsStreaming
+        body: ChatCompletionCreateParamsStreaming,
+        options?: { signal?: AbortSignal }
     ): Promise<AsyncIterable<any>> {
         await this.validateRequest(userId);
         const openaiClient = await this.resolveOpenAIClient(userId);
@@ -70,22 +72,26 @@ export class OpenAIProxyService {
             body.stream_options = { include_usage: true };
         }
 
-        return await openaiClient.chat.completions.create(body) as AsyncIterable<any>;
+        // casting `as any` is necessary. OpenAI SDK has overloaded create() signatures but TypeScript
+        // can't properly infer streaming vs non-streaming based on params type alone
+        return await openaiClient.chat.completions.create(body as any, options) as AsyncIterable<any>;
     }
 
     /**
      * Creates a non-streaming chat completion
      * @param userId - The user ID making the request
      * @param body - Chat completion parameters without streaming
+     * @param options - Optional request configuration (e.g. AbortSignal)
      * @returns Complete chat completion response with usage data
      */
     async createChatCompletion(
         userId: string,
-        body: ChatCompletionCreateParamsNonStreaming
+        body: ChatCompletionCreateParamsNonStreaming,
+        options?: { signal?: AbortSignal }
     ): Promise<any> {
         await this.validateRequest(userId);
         const openaiClient = await this.resolveOpenAIClient(userId);
-        const completion = await openaiClient.chat.completions.create(body);
+        const completion = await openaiClient.chat.completions.create(body, options);
 
         if (completion.usage) {
             await this.trackUsage(userId, body.model, completion.usage);
@@ -98,30 +104,37 @@ export class OpenAIProxyService {
      * Creates a stream for responses API
      * @param userId - The user ID making the request
      * @param body - Response creation parameters with streaming enabled
+     * @param options - Optional request configuration (e.g. AbortSignal)
      * @returns Async iterable stream of response chunks
      */
     async createResponseStream(
         userId: string,
-        body: ResponseCreateParamsStreaming
+        body: ResponseCreateParamsStreaming,
+        options?: { signal?: AbortSignal }
     ): Promise<AsyncIterable<any>> {
         await this.validateRequest(userId);
         const openaiClient = await this.resolveOpenAIClient(userId);
-        return await openaiClient.responses.create(body) as AsyncIterable<any>;
+
+        // casting `as any` is necessary. OpenAI SDK has overloaded create() signatures but TypeScript
+        // can't properly infer streaming vs non-streaming based on params type alone
+        return await openaiClient.responses.create(body as any, options) as AsyncIterable<any>;
     }
 
     /**
      * Creates a non-streaming response for responses API
      * @param userId - The user ID making the request
      * @param body - Response creation parameters without streaming
+     * @param options - Optional request configuration (e.g. AbortSignal)
      * @returns Complete response with usage data
      */
     async createResponse(
         userId: string,
-        body: ResponseCreateParamsNonStreaming
+        body: ResponseCreateParamsNonStreaming,
+        options?: { signal?: AbortSignal }
     ): Promise<any> {
         await this.validateRequest(userId);
         const openaiClient = await this.resolveOpenAIClient(userId);
-        const response = await openaiClient.responses.create(body);
+        const response = await openaiClient.responses.create(body, options);
 
         if (response.usage) {
             await this.trackUsage(userId, (response.model || body.model) as string, response.usage);

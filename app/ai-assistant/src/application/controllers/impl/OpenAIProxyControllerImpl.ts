@@ -193,19 +193,43 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
 
         this.logger.info('Processing OpenAI proxy request (Responses API)', { userId, model: body.model });
 
+        // Create AbortController to handle client disconnects
+        const abortController = new AbortController();
+        const signal = abortController.signal;
+
+        // Abort upstream request if client disconnects
+        const onClientDisconnect = () => {
+            this.logger.debug('Client disconnected, aborting upstream request', { userId });
+            abortController.abort();
+        };
+
+        reply.raw.on('close', onClientDisconnect);
+        reply.raw.on('error', onClientDisconnect);
+
         try {
             const isStreaming = body.stream === true;
 
             if (isStreaming) {
                 // Handle streaming response
-                const stream = await this.openAIProxyService.createResponseStream(userId, body as ResponseCreateParamsStreaming);
+                const stream = await this.openAIProxyService.createResponseStream(
+                    userId,
+                    body as ResponseCreateParamsStreaming,
+                    { signal }
+                );
                 return await this.handleStreamingRequest(stream, reply, userId, body.model as string);
             } else {
                 // Handle non-streaming response
-                return await this.openAIProxyService.createResponse(userId, body as ResponseCreateParamsNonStreaming);
+                return await this.openAIProxyService.createResponse(
+                    userId,
+                    body as ResponseCreateParamsNonStreaming,
+                    { signal }
+                );
             }
         } catch (error: any) {
             return this.handleOpenAIError(error, reply, 'Responses');
+        } finally {
+            reply.raw.removeListener('close', onClientDisconnect);
+            reply.raw.removeListener('error', onClientDisconnect);
         }
     }
 
@@ -223,18 +247,43 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
 
         this.logger.info('Processing OpenAI proxy request', { userId, model: body.model });
 
+        // Create AbortController to handle client disconnects
+        const abortController = new AbortController();
+        const signal = abortController.signal;
+
+        // Abort upstream request if client disconnects
+        const onClientDisconnect = () => {
+            this.logger.debug('Client disconnected, aborting upstream request', { userId });
+            abortController.abort();
+        };
+
+        reply.raw.on('close', onClientDisconnect);
+        reply.raw.on('error', onClientDisconnect);
+
         try {
             const isStreaming = body.stream === true;
 
             if (isStreaming) {
-                const stream = await this.openAIProxyService.createChatCompletionStream(userId, body as ChatCompletionCreateParamsStreaming);
+                const stream = await this.openAIProxyService.createChatCompletionStream(
+                    userId,
+                    body as ChatCompletionCreateParamsStreaming,
+                    { signal }
+                );
                 await this.handleStreamingRequest(stream, reply, userId, body.model);
             } else {
                 // Handle non-streaming response
-                return await this.openAIProxyService.createChatCompletion(userId, body as ChatCompletionCreateParamsNonStreaming);
+                return await this.openAIProxyService.createChatCompletion(
+                    userId,
+                    body as ChatCompletionCreateParamsNonStreaming,
+                    { signal }
+                );
             }
         } catch (error: any) {
+            // If aborted, we might want to log differently, but handleOpenAIError is generic enough
             return this.handleOpenAIError(error, reply, 'Chat Completion');
+        } finally {
+            reply.raw.removeListener('close', onClientDisconnect);
+            reply.raw.removeListener('error', onClientDisconnect);
         }
     }
 }
