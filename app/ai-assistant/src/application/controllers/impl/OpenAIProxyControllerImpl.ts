@@ -279,7 +279,6 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
                 );
             }
         } catch (error: any) {
-            // If aborted, we might want to log differently, but handleOpenAIError is generic enough
             return this.handleOpenAIError(error, reply, 'Chat Completion');
         } finally {
             reply.raw.removeListener('close', onClientDisconnect);
