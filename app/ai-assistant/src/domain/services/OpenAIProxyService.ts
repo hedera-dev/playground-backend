@@ -20,6 +20,8 @@ export class OpenAIProxyService {
 
     /**
      * Resolves which OpenAI client to use for a request
+     * @param userId - The user ID to check for a custom API key
+     * @returns OpenAI client instance (user's BYOK or system key)
      */
     protected async resolveOpenAIClient(userId: string): Promise<OpenAI> {
         let openaiClient = this.systemOpenAI;
@@ -43,6 +45,8 @@ export class OpenAIProxyService {
 
     /**
      * Validates if the user is allowed to make a request
+     * @param userId - The user ID to validate against usage limits
+     * @throws Error if user has exceeded their usage limit
      */
     async validateRequest(userId: string): Promise<void> {
         await this.tokenUsageService.checkUsageLimit(userId);
@@ -50,6 +54,9 @@ export class OpenAIProxyService {
 
     /**
      * Creates a stream for chat completions
+     * @param userId - The user ID making the request
+     * @param body - Chat completion parameters with streaming enabled
+     * @returns Async iterable stream of chat completion chunks
      */
     async createChatCompletionStream(
         userId: string,
@@ -68,6 +75,9 @@ export class OpenAIProxyService {
 
     /**
      * Creates a non-streaming chat completion
+     * @param userId - The user ID making the request
+     * @param body - Chat completion parameters without streaming
+     * @returns Complete chat completion response with usage data
      */
     async createChatCompletion(
         userId: string,
@@ -86,6 +96,9 @@ export class OpenAIProxyService {
 
     /**
      * Creates a stream for responses API
+     * @param userId - The user ID making the request
+     * @param body - Response creation parameters with streaming enabled
+     * @returns Async iterable stream of response chunks
      */
     async createResponseStream(
         userId: string,
@@ -98,6 +111,9 @@ export class OpenAIProxyService {
 
     /**
      * Creates a non-streaming response for responses API
+     * @param userId - The user ID making the request
+     * @param body - Response creation parameters without streaming
+     * @returns Complete response with usage data
      */
     async createResponse(
         userId: string,
@@ -116,6 +132,9 @@ export class OpenAIProxyService {
 
     /**
      * Safely tracks token usage
+     * @param userId - The user ID to track usage for
+     * @param model - The AI model used for the request
+     * @param usage - Usage data containing token counts
      */
     async trackUsage(userId: string, model: string, usage: any): Promise<void> {
         if (!usage) {
@@ -142,6 +161,8 @@ export class OpenAIProxyService {
     /**
      * Extracts usage data from a chunk
      * Handles nested usage objects (e.g. Responses API)
+     * @param chunk - Stream chunk that may contain usage data
+     * @returns Usage object or null if not found
      */
     extractUsage(chunk: any): any {
         return chunk.usage || chunk.response?.usage || (chunk as any).usage || null;
