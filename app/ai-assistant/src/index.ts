@@ -14,7 +14,7 @@ import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/User
 import { TokenUsageService } from './domain/services/TokenUsageService.js';
 import { OpenAIProxyService } from './domain/services/OpenAIProxyService.js';
 import { APIError, ErrorReason } from './utils/errors.js';
-import { isLocal } from "./utils/environment";
+import { isLocal } from "./utils/environment.js";
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
