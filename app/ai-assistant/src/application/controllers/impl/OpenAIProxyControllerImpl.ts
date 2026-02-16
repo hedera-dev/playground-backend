@@ -22,7 +22,7 @@ import IOpenAIProxyController from '../OpenAIProxyController.js';
  */
 export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
     /** Base path for all OpenAI proxy endpoints */
-    private basePath = '/api/openai/v1';
+    private basePath = '/api/playground/assistant/openai/v1';
     /** Logger instance for tracking operations */
     private logger = createLogger(undefined, 'OpenAIProxyController');
 

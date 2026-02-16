@@ -12,7 +12,6 @@ import { initializeKmsService } from './infrastructure/kms/KmsService.js';
 import { UserAIKeyService } from './domain/services/UserAIKeyService.js';
 import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
 import { TokenUsageService } from './domain/services/TokenUsageService.js';
-import { ChatService } from './domain/services/ChatService.js';
 import { OpenAIProxyService } from './domain/services/OpenAIProxyService.js';
 import { APIError, ErrorReason } from './utils/errors.js';
 import { isLocal } from "./utils/environment";
@@ -192,7 +191,6 @@ async function start() {
     }
 
     // Initialize services
-    const chatService = new ChatService();
     const tokenUsageService = new TokenUsageService();
     const proxyUserAIKeyRepository = new UserAIKeyRepositoryImpl();
     const proxyUserAIKeyService = new UserAIKeyService(proxyUserAIKeyRepository);
@@ -238,7 +236,8 @@ async function start() {
         endpoints: {
           chat: `/api/playground/assistant/chat`,
           history: `/api/playground/assistant/chat/history/:conversationId`,
-          openai: `/api/openai/v1/chat/completions`,
+          openaiChatCompletions: `/api/playground/assistant/openai/v1/chat/completions`,
+          openaiResponses: `/api/playground/assistant/openai/v1/responses`,
           health: `/api/playground/assistant/health`,
           stats: `/api/stats`,
           userKeys: userAIKeyController ? `/api/playground/assistant/user-ai-key` : 'disabled'
