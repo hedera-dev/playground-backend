@@ -1,7 +1,7 @@
 import { convertToModelMessages, UIMessage } from 'ai';
 import { createLogger, AppLogger } from '../../utils/logger.js';
 import { UserMetadata, UserMetadataType, ExecutionContext } from '../../types.js';
-import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents';
+import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
 import { MockAgent } from '../agents/implementations/MockAgent.js';
 import {
   AuthenticationError,
