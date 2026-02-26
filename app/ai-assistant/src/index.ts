@@ -1,5 +1,5 @@
+import { isLocal } from './utils/environment.js'; // must be first: loads dotenv
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
-import { config } from 'dotenv';
 import { ZodError } from 'zod';
 import { ChatControllerImpl } from './application/controllers/impl/ChatControllerImpl.js';
 import HealthControllerImpl from './application/controllers/impl/HealthControllerImpl.js';
@@ -11,9 +11,7 @@ import { initializeKmsService } from './infrastructure/kms/KmsService.js';
 import { UserAIKeyService } from './domain/services/UserAIKeyService.js';
 import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/UserAIKeyRepositoryImpl.js';
 import { APIError, ErrorReason } from './utils/errors.js';
-
-// Load environment variables
-config();
+import { registerLocalAuthMiddleware } from './application/middleware/localAuthMiddleware.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -175,6 +173,15 @@ async function start() {
       }
     } catch (error) {
       logger.warn(error, 'BYOK feature disabled: KMS initialization failed');
+    }
+
+    if (isLocal()) {
+      await fastify.register((await import('@fastify/cors')).default, {
+        origin: true,
+        credentials: true
+      });
+      await registerLocalAuthMiddleware(fastify);
+      logger.info('Local CORS and auth middleware (PASETO) registered');
     }
 
     const healthController = new HealthControllerImpl(fastify);

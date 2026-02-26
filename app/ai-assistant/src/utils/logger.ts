@@ -1,12 +1,12 @@
 import pino from 'pino';
-import { isDevelopment, isLocal } from './environment.js';
+import { isLocal } from './environment.js';
 
 // Create single logger instance that serves both Fastify and agents
 export const logger = pino({
   name: 'ai-assistant',
-  level: process.env.LOG_LEVEL || (isDevelopment || isLocal ? 'debug' : 'info'),
+  level: process.env.LOG_LEVEL || (isLocal() ? 'debug' : 'info'),
   transport:
-    isDevelopment || isLocal
+    isLocal()
       ? {
           target: 'pino-pretty',
           options: {
