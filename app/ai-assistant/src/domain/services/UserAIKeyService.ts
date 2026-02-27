@@ -135,7 +135,7 @@ export class UserAIKeyService {
    * @throws ValidationError if the key is invalid
    */
   private async validateAIKey(apiKey: string): Promise<boolean> {
-    if (isDevelopment || isLocal) {
+    if (isDevelopment() || isLocal()) {
       return true;
     }
 

@@ -2,9 +2,10 @@ import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import IHealthController from '../HealthController.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { PgClient } from '../../../infrastructure/persistence/PgConnector.js';
+import { BASE_PATH } from '../../../utils/constants.js';
 
 export default class HealthControllerImpl implements IHealthController {
-  private basePath = '/api/playground/assistant';
+  private basePath = BASE_PATH;
 
   constructor(private fastify: FastifyInstance) {}
 

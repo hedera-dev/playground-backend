@@ -1,7 +1,5 @@
 import { Pool, PoolClient } from 'pg';
 import { logger } from '../../utils/logger.js';
-import dotenv from 'dotenv';
-dotenv.config();
 
 export class PgConnector {
   private static instance: PgConnector;
