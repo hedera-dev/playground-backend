@@ -3,9 +3,10 @@ import { ChatService } from '../../../domain/services/ChatService.js';
 import { ChatSession } from '../../../types.js';
 import { UIMessage } from 'ai';
 import { NotFoundError, ErrorReason } from '../../../utils/errors.js';
+import { BASE_PATH } from '../../../utils/constants.js';
 
 export class ChatControllerImpl {
-  private basePath = '/api/playground/assistant';
+  private basePath = BASE_PATH;
   private chatService: ChatService;
   private sessions: Map<string, ChatSession> = new Map();
 

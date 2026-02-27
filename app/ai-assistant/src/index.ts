@@ -1,5 +1,7 @@
-import { isLocal } from './utils/environment.js'; // must be first: loads dotenv
+import 'dotenv/config';
+import { environment, isLocal } from './utils/environment.js';
 import Fastify, { FastifyBaseLogger, FastifyInstance } from 'fastify';
+import cors from '@fastify/cors';
 import { ZodError } from 'zod';
 import { ChatControllerImpl } from './application/controllers/impl/ChatControllerImpl.js';
 import HealthControllerImpl from './application/controllers/impl/HealthControllerImpl.js';
@@ -13,8 +15,8 @@ import { UserAIKeyRepositoryImpl } from './infrastructure/repositories/impl/User
 import { APIError, ErrorReason } from './utils/errors.js';
 import { registerLocalAuthMiddleware } from './application/middleware/localAuthMiddleware.js';
 
-const PORT = parseInt(process.env.PORT || '3001', 10);
-const HOST = process.env.HOST || '0.0.0.0';
+const PORT = environment.port;
+const HOST = environment.host;
 
 const fastify: FastifyInstance = Fastify({
   loggerInstance: logger as FastifyBaseLogger,
@@ -176,12 +178,35 @@ async function start() {
     }
 
     if (isLocal()) {
-      await fastify.register((await import('@fastify/cors')).default, {
-        origin: true,
-        credentials: true
+      await fastify.register(cors, {
+        origin: environment.allowedOrigin,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'X-Requested-With',
+          'Accept',
+          'Origin',
+          'X-User-ID',
+          'Cache-Control',
+          'x-stainless-os',
+          'x-stainless-lang',
+          'x-stainless-package-version',
+          'x-stainless-runtime',
+          'x-stainless-runtime-version',
+          'x-stainless-arch',
+          'x-stainless-retry-count'
+        ],
+        credentials: true,
+        maxAge: 3628800
       });
       await registerLocalAuthMiddleware(fastify);
       logger.info('Local CORS and auth middleware (PASETO) registered');
+    } else {
+      logger.warn(
+        { environment: environment.environment },
+        'Running without CORS/auth middleware — HAProxy + SPOE must be in front of this service'
+      );
     }
 
     const healthController = new HealthControllerImpl(fastify);
