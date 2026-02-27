@@ -36,7 +36,10 @@ spec:
             - name: HOST
               value: {{ .Values.env.HOST | quote }}
             - name: OPENAI_API_KEY
-              value: {{ .Values.env.OPENAI_API_KEY | quote }}
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Release.Name }}-ai-assistant-secrets"
+                  key: openai_api_key
             - name: INSTRUCTIONS_PATH
               value: "/config/instructions.txt"
             - name: CODE_REVIEW_MODEL
@@ -51,8 +54,13 @@ spec:
               value: {{ .Values.env.ENABLE_MOCK_MODE | quote }}
             - name: VECTOR_STORE_ID
               value: {{ .Values.env.VECTOR_STORE_ID | quote }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Release.Name }}-ai-assistant-secrets"
+                  key: redis_password
             - name: REDIS_URL
-              value: "rediss://{{ .Values.env.redis.user }}:{{ .Values.env.redis.password }}@{{ .Values.env.redis.host }}:{{ .Values.env.redis.port }}/{{ .Values.env.redis.database }}"
+              value: "rediss://{{ .Values.env.redis.user }}:$(REDIS_PASSWORD)@{{ .Values.env.redis.host }}:{{ .Values.env.redis.port }}/{{ .Values.env.redis.database }}"
             - name: TOKENS_LIMIT_PER_MONTH
               value: {{ .Values.env.TOKENS_LIMIT_PER_MONTH | quote }}
             - name: PG_HOST
