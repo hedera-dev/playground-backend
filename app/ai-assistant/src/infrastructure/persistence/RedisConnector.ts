@@ -1,7 +1,6 @@
 import Redis from 'ioredis';
 import { logger } from '../../utils/logger.js';
-import dotenv from 'dotenv';
-dotenv.config();
+
 export class CacheConnector {
   private client: Redis | null = null;
 

@@ -1,514 +1,178 @@
-# Hedera Playground Backend
+# AI Assistant — Hedera Playground Backend
 
-Backend API de WebSocket construido con TypeScript, Fastify y OpenAI para el asistente Hedera Playground.
+HTTP Streaming API built with TypeScript and Fastify for the Hedera Playground assistant.
 
-## 🚀 Características
+## Features
 
--   **Fastify**: Framework web rápido y eficiente
--   **WebSocket**: Comunicación en tiempo real con `@fastify/websocket`
--   **OpenAI Integration**: Streaming de respuestas con GPT-4
--   **TypeScript**: Tipado estático completo
--   **Validación**: Esquemas Zod para mensajes WebSocket
--   **Health Checks**: Endpoints de monitoreo
--   **Auto-reconexión**: Manejo robusto de conexiones
+- **Fastify 5**: Fast web framework with native streaming support
+- **OpenAI Streaming**: Real-time responses via AI SDK
+- **PASETO v4**: Local authentication replicating SPOE/HAProxy behavior
+- **PostgreSQL**: Session and configuration persistence
+- **Redis**: Conversation session cache
+- **BYOK**: Support for user-provided OpenAI keys (via GCP KMS)
+- **Pino**: Structured logging with pino-pretty in development
+- **TypeScript**: Full static typing
 
-## 📋 Instalación
+## Installation
 
 ```bash
-# Instalar dependencias
 npm install
 
-# Configurar variables de entorno
-cp env.example .env
+# Copy and fill in environment variables
+cp .env-tpl .env
 ```
 
-### Variables de Entorno
+## Environment Variables
 
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-PORT=3001
-NODE_ENV=development
-```
+| Variable | Required | Description |
+|---|---|---|
+| `ENVIRONMENT` | Yes | Runtime environment: `local` \| `development` \| `production` |
+| `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `PORT` | No | Server port (default: `3001`) |
+| `HOST` | No | Server host (default: `0.0.0.0`) |
+| `LOG_LEVEL` | No | Log level: `debug` \| `info` \| `warn` \| `error` (default: `debug` in local/dev, `info` in prod) |
+| `PASETO_V4_PUBLIC_KEY_HEX` | Yes (local) | Hex-encoded Ed25519 public key for PASETO token verification |
+| `ALLOWED_ORIGIN` | No | Allowed CORS origin in local mode (default: `http://localhost:3000`) |
+| `REDIS_URL` | No | Redis connection URL |
+| `PG_HOST` | Yes | PostgreSQL host |
+| `PG_PORT` | Yes | PostgreSQL port |
+| `PG_DATABASE` | Yes | Database name |
+| `PG_USER` | Yes | PostgreSQL user |
+| `PG_PASSWORD` | Yes | PostgreSQL password |
+| `PG_SSL` | No | Enable SSL for PG connection (`true`/`false`) |
+| `MODEL_OPENAI` | No | Default OpenAI model |
+| `VECTOR_STORE_ID` | No | OpenAI vector store ID |
+| `TOKENS_LIMIT_PER_MONTH` | No | Monthly token limit per user |
+| `ENABLE_MOCK_MODE` | No | Enable mock responses without calling OpenAI (`true`/`false`) |
+| `GCP_PROJECT_ID` | No (BYOK) | GCP project for KMS |
+| `GCP_KMS_LOCATION` | No (BYOK) | KMS region (default: `us-central1`) |
+| `GCP_KMS_KEYRING` | No (BYOK) | KMS keyring name |
+| `GCP_KMS_CRYPTO_KEY` | No (BYOK) | KMS crypto key name |
+| `GOOGLE_APPLICATION_CREDENTIALS` | No (BYOK) | Path to GCP service account JSON key file |
 
-## 🛠️ Scripts
+## Scripts
 
 ```bash
-# Desarrollo con hot reload
+# Development with hot reload
 npm run dev
 
-# Compilar TypeScript
+# Development with explicit debug level
+npm run dev:debug
+
+# Compile TypeScript
 npm run build
 
-# Ejecutar versión compilada
+# Run compiled output
 npm start
-
-# Tests (por implementar)
-npm test
 ```
 
-## 📡 API
+## Architecture
 
-### WebSocket Endpoints
-
-#### `/ws/chat`
-
-Endpoint principal para comunicación de chat en tiempo real.
-
-**Mensajes de entrada:**
-
-```typescript
-{
-  type: 'chat' | 'ping',
-  content: string,
-  conversationId?: string,
-  messageId?: string
-}
-```
-
-**Respuestas:**
-
-```typescript
-{
-  type: 'chat_start' | 'chat_delta' | 'chat_complete' | 'error' | 'pong',
-  content?: string,
-  messageId?: string,
-  conversationId?: string,
-  error?: string,
-  metadata?: {
-    model?: string,
-    finishReason?: string,
-    usage?: {
-      promptTokens: number,
-      completionTokens: number,
-      totalTokens: number
-    }
-  }
-}
-```
-
-### HTTP Endpoints
-
-#### `GET /health`
-
-Estado del servidor
-
-```json
-{
-	"status": "healthy",
-	"timestamp": "2024-01-01T00:00:00.000Z",
-	"uptime": 123.45,
-	"environment": "development"
-}
-```
-
-#### `GET /api/info`
-
-Información de la API
-
-```json
-{
-	"name": "Hedera Playground Backend",
-	"version": "1.0.0",
-	"description": "WebSocket API for Hedera Playground Assistant",
-	"endpoints": {
-		"websocket": "/ws/chat",
-		"health": "/health",
-		"stats": "/api/stats"
-	}
-}
-```
-
-#### `GET /api/stats`
-
-Estadísticas de conexiones
-
-```json
-{
-	"activeConnections": 2,
-	"connections": [
-		{
-			"id": "uuid-1",
-			"isAlive": true,
-			"messageCount": 5
-		}
-	]
-}
-```
-
-## 🏗️ Arquitectura
+The project follows a layered structure:
 
 ```
 src/
-├── index.ts              # Servidor principal Fastify
-├── websocket-handler.ts  # Manejo de conexiones WebSocket
-├── openai-service.ts     # Servicio de integración OpenAI
-└── types.ts             # Definiciones de tipos TypeScript
+├── application/      # HTTP controllers and middleware (routes, auth)
+├── domain/           # Business logic and services
+├── infrastructure/   # External integrations (PostgreSQL, Redis, GCP KMS)
+└── utils/            # Shared helpers (logger, environment, errors, constants)
 ```
 
-### Componentes Principales
+## HTTP Endpoints
 
-#### `WebSocketHandler`
+### `GET /api/playground/assistant/health`
 
--   Maneja conexiones WebSocket
--   Enrutamiento de mensajes
--   Health checks (ping/pong)
--   Gestión de estado de conexiones
-
-#### `OpenAIService`
-
--   Integración con OpenAI API
--   Streaming de respuestas
--   Manejo de historial de conversaciones
--   Especialización en Hedera/Web3
-
-#### `Types`
-
--   Esquemas de validación Zod
--   Interfaces TypeScript
--   Tipos para mensajes y respuestas
-
-## 🔧 Configuración Avanzada
-
-### CORS
-
-```typescript
-await fastify.register(cors, {
-	origin: [
-		"http://localhost:3000",
-		"http://localhost:5173",
-		/^http:\/\/localhost:\d+$/,
-	],
-	credentials: true,
-});
-```
-
-### WebSocket Options
-
-```typescript
-await fastify.register(websocket, {
-	options: {
-		maxPayload: 1048576, // 1MB
-		verifyClient: (info) => true, // Personalizar autenticación
-	},
-});
-```
-
-### OpenAI Configuration
-
-```typescript
-const stream = await this.client.chat.completions.create({
-  model: 'gpt-4o',
-  messages: [...],
-  stream: true,
-  max_tokens: 2000,
-  temperature: 0.7,
-});
-```
-
-## 🔍 Logging y Debugging
-
-El servidor incluye logging integrado con Fastify:
-
-```bash
-# Logs de desarrollo (nivel: info)
-npm run dev
-
-# Logs de producción (nivel: warn)
-NODE_ENV=production npm start
-```
-
-## 🚦 Manejo de Errores
-
--   Validación de esquemas con Zod
--   Error handlers globales de Fastify
--   Timeout handling para conexiones WebSocket
--   Reconexión automática del cliente
-
-## 📊 Monitoreo
-
--   Health check endpoint
--   Estadísticas de conexiones activas
--   Métricas de uso de tokens OpenAI
--   Estado de conexiones WebSocket
-
-## 🔒 Seguridad
-
--   Validación de entrada con Zod
--   CORS configurado apropiadamente
--   Rate limiting (por implementar)
--   Autenticación (por implementar)
-
-## 🚀 Despliegue
-
-### Desarrollo
-
-```bash
-npm run dev
-```
-
-### Producción
-
-```bash
-npm run build
-npm start
-```
-
-### Docker (por implementar)
-
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY dist ./dist
-EXPOSE 3001
-CMD ["npm", "start"]
-```
-
-## Helm Chart
-
-To deploy the application using Helm, follow these steps:
-
-1. **Create a Helm Chart**:
-
-    - Run `helm create hedera-playground-assistant` to generate a new Helm chart.
-    - Replace the contents of `hedera-playground-assistant/templates/` with the Kubernetes manifests created earlier.
-
-2. **Update `values.yaml`**:
-
-    - Set the Docker image and other configurations as needed.
-
-3. **Deploy the Helm Chart**:
-
-    - Run `helm install hedera-playground-assistant ./hedera-playground-assistant` to deploy the application.
-
-4. **Verify Deployment**:
-    - Use `kubectl get pods` and `kubectl get services` to ensure the application is running correctly.
-
-## GCP deployment with Terraform
-
-### Prerequisites
-
--   Google Cloud project with billing enabled
--   `gcloud` CLI authenticated and configured for your project
--   `terraform` >= 1.5 installed
-
-### What Terraform creates
-
--   Artifact Registry repo for Docker images
--   Secret Manager secret `OPENAI_API_KEY`
--   Cloud Run (fully managed) service for the backend
--   Service Account for Cloud Run with permissions to pull images and read the secret
--   Public invoker on the Cloud Run service
-
-### 1) Build and push the Docker image
-
-```bash
-# Set these values
-PROJECT_ID="your-project-id"
-REGION="us-central1"
-REPO="playground-backend"
-IMAGE_NAME="backend"
-TAG="v1"
-
-gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-gcloud services enable artifactregistry.googleapis.com run.googleapis.com secretmanager.googleapis.com iam.googleapis.com --project ${PROJECT_ID}
-
-# Create repo if it does not exist
-gcloud artifacts repositories create ${REPO} \
-  --repository-format=docker \
-  --location=${REGION} \
-  --description="Docker repo for playground backend" \
-  --project ${PROJECT_ID} || true
-
-# Build and push
-docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${TAG} -f ./backend/Dockerfile ./backend
-docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${TAG}
-```
-
-### 2) Upload your OpenAI key to Secret Manager
-
-```bash
-gcloud secrets create OPENAI_API_KEY --replication-policy=automatic --project ${PROJECT_ID} || true
-printf "%s" "$OPENAI_API_KEY" | gcloud secrets versions add OPENAI_API_KEY --data-file=- --project ${PROJECT_ID}
-```
-
-### 3) Deploy infra with Terraform
-
-```bash
-cd ../infra/terraform
-
-terraform init
-terraform apply \
-  -var="project_id=${PROJECT_ID}" \
-  -var="region=${REGION}" \
-  -var="repository_id=${REPO}" \
-  -var="service_name=playground-backend" \
-  -var="image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${TAG}"
-```
-
-### 4) Verify
-
-```bash
-terraform output cloud_run_url
-curl "$(terraform output -raw cloud_run_url)/api/playground/assistant/health"
-```
-
-Notes:
-
--   The service listens on port `3001` and exposes `/api/playground/assistant/health`.
--   `OPENAI_API_KEY` is injected from Secret Manager at runtime. Ensure the secret has a latest version.
-
-## GKE deployment (Kubernetes) with Terraform
-
-If you prefer Kubernetes over Cloud Run, use the provided Terraform to create a GKE Autopilot cluster and deploy a `Service` named `hedera-playground-assistant` that exposes the app via a LoadBalancer.
-
-### Prerequisites
-
--   Google Cloud project with billing enabled
--   `gcloud` and `terraform` installed
--   Docker image pushed to Artifact Registry (see step 1 below)
-
-### 1) Build and push the Docker image
-
-```bash
-PROJECT_ID="playground-develop-441415"
-REGION="us-central1"
-REPO="playground-backend"
-IMAGE_NAME="backend"
-TAG="v1"
-
-gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
-gcloud services enable artifactregistry.googleapis.com container.googleapis.com secretmanager.googleapis.com iam.googleapis.com --project ${PROJECT_ID}
-
-gcloud artifacts repositories create ${REPO} \
-  --repository-format=docker \
-  --location=${REGION} \
-  --description="Docker repo for playground backend" \
-  --project ${PROJECT_ID} || true
-
-docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${TAG} -f ./backend/Dockerfile ./backend
-docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${TAG}
-```
-
-### 2) Deploy GKE + Kubernetes resources with Terraform
-
-```bash
-cd ../infra/terraform
-
-# Pass your secret without echoing it on the command line
-export TF_VAR_openai_api_key="${OPENAI_API_KEY}"
-
-terraform init
-terraform apply \
-  -var="project_id=${PROJECT_ID}" \
-  -var="region=${REGION}" \
-  -var="repository_id=${REPO}" \
-  -var="service_name=playground-backend" \
-  -var="image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${TAG}" \
-  -var="enable_cloud_run=false"
-```
-
-### 3) Get access and test Service
-
-```bash
-# Fetch kubeconfig for the Autopilot cluster
-gcloud container clusters get-credentials playground-backend-gke --region ${REGION} --project ${PROJECT_ID}
-
-# Wait for the LoadBalancer external IP
-kubectl get svc hedera-playground-assistant -w
-
-# Once EXTERNAL-IP is assigned, test health
-EXTERNAL_IP=$(kubectl get svc hedera-playground-assistant -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-curl "http://${EXTERNAL_IP}/api/playground/assistant/health"
-```
-
-Notes:
-
--   The Service name is `hedera-playground-assistant` and forwards port 80 -> container `3001`.
--   The Deployment label selector uses `app: playground-backend` by default; keep labels in sync if you change `service_name`.
-
-## 📊 Sistema de Logging con Pino
-
-### Configuración Centralizada
-
-El sistema utiliza **Pino** con **pino-pretty** para logging estructurado y legible:
-
-```typescript
-import { logger, createAgentLogger } from "./utils/logger.js";
-
-// Logger principal para toda la aplicación
-logger.info({ key: "value" }, "Message");
-
-// Logger específico para agentes con trazabilidad de sesión
-const agentLogger = createAgentLogger();
-agentLogger.logAgent1Start("User input...");
-```
-
-### Variables de Entorno de Logging
-
-```bash
-# Nivel de logging (debug, info, warn, error, fatal)
-LOG_LEVEL=debug
-
-# Entorno (afecta formato de salida)
-NODE_ENV=development  # pino-pretty con colores
-NODE_ENV=production   # JSON estructurado
-```
-
-### Scripts de Desarrollo
-
-```bash
-# Desarrollo normal
-npm run dev
-
-# Modo debug (muestra flujo completo Agent 1 → Agent 2)
-npm run dev:debug
-```
-
-### Logs de Debug para Agentes
-
-En modo debug (`LOG_LEVEL=debug`), verás el flujo completo:
-
--   **Input del usuario** al Agent 1
--   **Salida completa** del Agent 1 → Agent 2
--   **Prompt generado** para el Agent 2
--   **Respuesta final** del Agent 2
--   **Consumo de tokens** por agente
-
-### Formato de Salida
-
-**Desarrollo** (pino-pretty):
-
-```
-[2025-01-XX 10:15:23.456] INFO: 🚀 Two-agent mode enabled
-    agent: "SESSION"
-    sessionId: "a1b2c3"
-    elapsed: 0
-
-[2025-01-XX 10:15:24.123] DEBUG: Full proposed changes (Agent 1 → Agent 2 input)
-    agent: "AGENT-1"
-    fullProposedChanges: {...}
-```
-
-**Producción** (JSON):
+Server status and database connectivity.
 
 ```json
 {
-	"level": 30,
-	"time": 1640000000000,
-	"agent": "AGENT-1",
-	"sessionId": "a1b2c3",
-	"msg": "Changes proposed"
+  "currentTime": "2025-01-01T00:00:00.000Z",
+  "redis": { "ok": true },
+  "pg": { "ok": true }
 }
 ```
 
-## 📝 Próximas Mejoras
+### `POST /api/playground/assistant/chat`
 
--   [ ] Autenticación JWT
--   [ ] Rate limiting
--   [ ] Métricas Prometheus
--   [ ] Tests unitarios
--   [ ] Docker containerization
--   [ ] Base de datos para persistencia
--   [ ] Clustering para múltiples instancias
+Starts or continues a conversation. Returns a streaming response (SSE / data stream).
+
+**Required headers:**
+- `Authorization: Bearer <paseto-token>` — in local mode, verified by the middleware
+- `x-user-id` — in production, injected by SPOE/HAProxy
+
+**Body:**
+```json
+{
+  "id": "session-uuid",
+  "messages": [{ "role": "user", "content": "What is Hedera?" }],
+  "model": "gpt-4o-mini",
+  "useCustomKey": false
+}
+```
+
+### `GET /api/playground/assistant/chat/history/:conversationId`
+
+Returns the history of a conversation.
+
+### `GET /api/stats`
+
+Active session statistics.
+
+```json
+{
+  "activeSessions": 3,
+  "timestamp": "2025-01-01T00:00:00.000Z",
+  "status": "running"
+}
+```
+
+## Authentication
+
+In **production**, the service runs behind HAProxy + SPOE, which verifies the PASETO token and adds the `x-user-id` header before the request reaches Fastify. The service trusts that header directly.
+
+In **local** mode (`ENVIRONMENT=local`), the `localAuthMiddleware` replicates that behavior:
+
+1. Verifies the PASETO v4 token using the public key from `PASETO_V4_PUBLIC_KEY_HEX`
+2. Extracts the `userId` from the payload (`userId` field with fallback to `sub`)
+3. Injects `x-user-id` into the request headers
+
+Expired tokens are accepted in local mode (`ignoreExp: true`) to ease development, with a warning logged.
+
+```
+ENVIRONMENT=local  →  localAuthMiddleware verifies PASETO → sets x-user-id
+ENVIRONMENT=*      →  HAProxy/SPOE verifies PASETO        → sets x-user-id
+```
+
+## Logging
+
+The system uses **Pino** with a centralized instance in `utils/logger.ts`.
+
+- In `local` and `development`: human-readable format with `pino-pretty` and colors
+- In `production`: structured JSON
+
+```typescript
+import { logger, createLogger } from './utils/logger.js';
+
+// Global logger
+logger.info({ userId }, 'Chat started');
+
+// Session-scoped logger
+const sessionLogger = createLogger({ sessionId, userId }, 'CHAT');
+sessionLogger.info('Streaming response');
+sessionLogger.debug('Token usage', { tokens: 1234 });
+```
+
+The level is controlled by `LOG_LEVEL`. If not set, defaults to `debug` in local/development and `info` in production.
+
+## Error Handling
+
+Fastify has a global `setErrorHandler` that handles:
+
+- **`ZodError`**: returns 400 with per-field validation details
+- **`APIError`**: typed business errors with `ErrorReason`
+- **OpenAI errors**: propagates the original `statusCode` and `type`
+- **Unknown errors**: 500 with stack trace logged
+
+## BYOK (Bring Your Own Key)
+
+If `GCP_PROJECT_ID`, `GCP_KMS_KEYRING`, and `GCP_KMS_CRYPTO_KEY` are configured, the service enables a user key management endpoint. Keys are encrypted with GCP KMS before being stored in PostgreSQL.

@@ -2,11 +2,11 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ChatService } from '../../../domain/services/ChatService.js';
 import { ChatSession } from '../../../types.js';
 import { UIMessage } from 'ai';
-import { isLocal } from '../../../utils/environment.js';
 import { NotFoundError, ErrorReason } from '../../../utils/errors.js';
+import { BASE_PATH } from '../../../utils/constants.js';
 
 export class ChatControllerImpl {
-  private basePath = '/api/playground/assistant';
+  private basePath = BASE_PATH;
   private chatService: ChatService;
   private sessions: Map<string, ChatSession> = new Map();
 
@@ -21,10 +21,7 @@ export class ChatControllerImpl {
 
   private async startConversation(request: FastifyRequest, reply: FastifyReply) {
     const body = request.body as { messages: UIMessage[], userId: string, id: string, model?: string, useCustomKey?: boolean };
-    let userId = (request.headers['x-user-id'] as string) || 'unknown';
-    if (isLocal) {
-      userId = body.userId;
-    }
+    const userId = (request.headers['x-user-id'] as string) || 'unknown';
     const sessionId = body.id;
     const { messages } = body;
     return this.chatService.streamChat(messages, userId, sessionId);
