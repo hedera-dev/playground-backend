@@ -32,9 +32,7 @@ jobs:
       - name: Install yq
         run: |
           curl -sL https://github.com/mikefarah/yq/releases/download/v4.18.1/yq_linux_amd64 -o /tmp/yq
-          curl -sL https://github.com/mikefarah/yq/releases/download/v4.18.1/checksums -o /tmp/yq_checksums
-          EXPECTED=$(grep "SHA-256" /tmp/yq_checksums -A1 | grep "yq_linux_amd64$" | awk '{print $1}')
-          echo "${EXPECTED}  /tmp/yq" | sha256sum -c
+          echo "d966f848bbe9a8526aeac559bc01f51cec94f553c75e493a0bc5e840323790e4  /tmp/yq" | sha256sum -c
           sudo install /tmp/yq /usr/local/bin/yq
 
 
