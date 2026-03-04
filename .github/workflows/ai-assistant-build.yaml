@@ -154,6 +154,21 @@ jobs:
         run: |
           docker push "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}"
 
+      - name: Get image digest
+        id: get-digest
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}")
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Image pushed: $DIGEST"
+
+          DIGEST_ONLY=$(echo "$DIGEST" | sed 's/.*@//')
+          echo "digest_only=$DIGEST_ONLY" >> $GITHUB_OUTPUT
+
+          TAG_WITH_DIGEST="${VERSION}@${DIGEST_ONLY}"
+          echo "tag_with_digest=$TAG_WITH_DIGEST" >> $GITHUB_OUTPUT
+
       - name: Create and push a new git tag
         if: ${{ github.event.inputs.set_tag == 'true' && github.event.inputs.version != 'latest' && github.ref != 'refs/heads/master' }}
         env:
@@ -179,7 +194,12 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Full Image:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.get-digest.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag + Digest (for deployment):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.get-digest.outputs.tag_with_digest }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Repository:** ${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}" >> $GITHUB_STEP_SUMMARY
