@@ -28,8 +28,13 @@ jobs:
     outputs:
       develop_image_tag: ${{ steps.set-tag.outputs.develop_image_tag }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
+
       - name: Configure Google Cloud Auth
-        uses: "google-github-actions/auth@v2"
+        uses: "google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed" # v2.1.13
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
           workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
@@ -37,7 +42,7 @@ jobs:
 
       - name: "Set up Cloud SDK"
         if: ${{ github.ref == 'refs/heads/master' }}
-        uses: "google-github-actions/setup-gcloud@v2"
+        uses: "google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a" # v2.1.4
         with:
           version: ">= 363.0.0"
 
@@ -48,21 +53,27 @@ jobs:
 
       - name: Pull the develop Docker image
         if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          docker pull ${{vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
+          docker pull "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}"
 
       - name: Set docker image tag output
         id: set-tag
-        run: echo "develop_image_tag=${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: echo "develop_image_tag=${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Save Docker image as tar
         if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          docker save -o ${{ env.TEMP_IMAGE_PATH }}_${{ github.event.inputs.version }}.tar ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
+          docker save -o "${TEMP_IMAGE_PATH}_${VERSION}.tar" "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}"
 
       - name: Upload artifact
         if: ${{ github.ref == 'refs/heads/master' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: ${{ github.event.inputs.version }}
           path: ${{ env.TEMP_IMAGE_PATH }}_${{ github.event.inputs.version }}.tar
@@ -79,12 +90,17 @@ jobs:
       DOCKERFILE_PATH: ./app/ai-assistant/.
       GIT_TAG: ai-assistant-v${{ github.event.inputs.version }}
     permissions:
-      contents: "write"
+      contents: "read"
       id-token: "write"
 
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
+
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         if: ${{ github.ref == 'refs/heads/master' }}
         with:
           name: ${{ github.event.inputs.version }}
@@ -92,24 +108,26 @@ jobs:
 
       - name: Load image
         if: ${{ github.ref == 'refs/heads/master' }}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          docker load --input ${{ env.TEMP_IMAGE_PATH }}_${{ github.event.inputs.version }}.tar
+          docker load --input "${TEMP_IMAGE_PATH}_${VERSION}.tar"
           docker image ls -a
 
       - name: Checkout code
         if: ${{ github.ref != 'refs/heads/master' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.ref }}
 
       - name: Configure Google Cloud Auth
-        uses: "google-github-actions/auth@v2"
+        uses: "google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed" # v2.1.13
         with:
           workload_identity_provider: ${{ vars.GCP_PLAYGROUND_WORKLOAD_IDP }}
           service_account: ${{ vars.GCP_GITHUB_ACTIONS_SERVICE_ACCOUNT }}
 
       - name: Set up Cloud SDK
-        uses: "google-github-actions/setup-gcloud@v2"
+        uses: "google-github-actions/setup-gcloud@77e7a554d41e2ee56fc945c52dfd3f33d12def9a" # v2.1.4
         with:
           version: ">= 363.0.0"
 
@@ -118,29 +136,70 @@ jobs:
           gcloud auth configure-docker ${{ vars.GCP_ARTIFACT_ID }}
 
       - name: Build or Tag Docker image
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+          DEVELOP_IMAGE_TAG: ${{ needs.build_on_main.outputs.develop_image_tag }}
         run: |
           if [ "${{ github.ref }}" == "refs/heads/master" ]; then
-            echo "Tagging image: ${{ needs.build_on_main.outputs.develop_image_tag }} - to - ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}"
-            docker tag ${{ needs.build_on_main.outputs.develop_image_tag }} ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
+            echo "Tagging image: ${DEVELOP_IMAGE_TAG} - to - ${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}"
+            docker tag "${DEVELOP_IMAGE_TAG}" "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}"
           else
             echo "Building image for develop branch"
-            docker build --platform linux/amd64 -t ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }} ${{ env.DOCKERFILE_PATH}}
+            docker build --platform linux/amd64 -t "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}" "${DOCKERFILE_PATH}"
           fi
 
       - name: Push Docker image to Google Artifact Registry
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          docker push ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}
+          docker push "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}"
+
+      - name: Get image digest
+        id: get-digest
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}")
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+          echo "Image pushed: $DIGEST"
+
+          DIGEST_ONLY=$(echo "$DIGEST" | sed 's/.*@//')
+          echo "digest_only=$DIGEST_ONLY" >> $GITHUB_OUTPUT
+
+          TAG_WITH_DIGEST="${VERSION}@${DIGEST_ONLY}"
+          echo "tag_with_digest=$TAG_WITH_DIGEST" >> $GITHUB_OUTPUT
 
       - name: Create and push a new git tag
         if: ${{ github.event.inputs.set_tag == 'true' && github.event.inputs.version != 'latest' && github.ref != 'refs/heads/master' }}
+        env:
+          GIT_TAG: ${{ env.GIT_TAG }}
+          VERSION: ${{ github.event.inputs.version }}
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git fetch --all
-          git checkout ${{ github.ref }}
-          git tag -a "${{ env.GIT_TAG }}" -m "Version ${{ github.event.inputs.version }}"
-          git push origin "${{ env.GIT_TAG }}"
+          git checkout "${{ github.ref }}"
+          git tag -a "${GIT_TAG}" -m "Version ${VERSION}"
+          git push origin "${GIT_TAG}"
 
-      - name: Display success
+      - name: Build Summary
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          echo "Successfully pushed: ${{ vars.GCP_ARTIFACT_REPOSITORY }}${{ env.DOCKER_IMAGE_PATH }}:${{ github.event.inputs.version }}"
+          echo "## 🐳 AI Assistant Docker Image Built Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag:** \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** \`${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Full Image:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.get-digest.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image Tag + Digest (for deployment):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.get-digest.outputs.tag_with_digest }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}" >> $GITHUB_STEP_SUMMARY

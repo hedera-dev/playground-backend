@@ -142,7 +142,7 @@ data:
         acl is_options_request method OPTIONS
         
         # Handle CORS preflight requests (OPTIONS) - MUST return 200 OK
-        http-request return status 200 hdr Access-Control-Allow-Origin "%[var(txn.origin)]" hdr Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" hdr Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control" hdr Access-Control-Allow-Credentials "true" hdr Access-Control-Max-Age "3628800" if is_options_request origin_allowed
+        http-request return status 200 hdr Access-Control-Allow-Origin "%[var(txn.origin)]" hdr Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" hdr Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch, x-stainless-retry-count" hdr Access-Control-Allow-Credentials "true" hdr Access-Control-Max-Age "3628800" if is_options_request origin_allowed
         
         # Deny OPTIONS requests from non-allowed origins
         http-request deny deny_status 403 if is_options_request !origin_allowed
@@ -183,12 +183,12 @@ data:
         # CORS: Set dynamic origin only if allowed (for all responses including errors)
         http-response set-header Access-Control-Allow-Origin "%[var(txn.origin)]" if origin_allowed
         http-response set-header Access-Control-Allow-Credentials "true" if origin_allowed
-        http-response set-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control" if origin_allowed
+        http-response set-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch, x-stainless-retry-count" if origin_allowed
         http-response set-header Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" if origin_allowed
         
         http-after-response set-header Access-Control-Allow-Origin "%[var(txn.origin)]" if origin_allowed
         http-after-response set-header Access-Control-Allow-Credentials "true" if origin_allowed
-        http-after-response set-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control" if origin_allowed
+        http-after-response set-header Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin, X-User-ID, Cache-Control, x-stainless-os, x-stainless-lang, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-arch, x-stainless-retry-count" if origin_allowed
         http-after-response set-header Access-Control-Allow-Methods "GET, DELETE, OPTIONS, POST, PUT, PATCH" if origin_allowed
 
         default_backend assistant
