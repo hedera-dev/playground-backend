@@ -67,15 +67,23 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
 
     /**
      * Handles streaming responses from OpenAI API
-     * Streams chunks to the client as SSE and tracks token usage
+     * Streams chunks to the client as SSE and tracks token usage.
+     * Owns the full client-disconnect lifecycle: listens on both the
+     * incoming request and outgoing reply sockets and aborts the
+     * upstream OpenAI stream when the client goes away.
+     *
      * @param stream - Async iterable stream from OpenAI
+     * @param request - Fastify request (used to detect client disconnect)
      * @param reply - Fastify reply object for writing response
+     * @param abortController - Controller whose signal was passed to the OpenAI SDK call
      * @param userId - User identifier for usage tracking
      * @param model - Model name for usage tracking
      */
     private async handleStreamingRequest(
         stream: AsyncIterable<any>,
+        request: FastifyRequest,
         reply: FastifyReply,
+        abortController: AbortController,
         userId: string,
         model: string
     ): Promise<void> {
@@ -83,18 +91,28 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
         reply.hijack();
         this.setupStreamHeaders(reply);
 
-        // Handle client disconnect
-        // We abort the loop if the client closes the connection
+        // ── Client-disconnect detection ──────────────────────────
         let isClientConnected = true;
 
-        const closeHandler = () => {
+        const onDisconnect = () => {
+            if (!isClientConnected) return; // already handled
             isClientConnected = false;
             this.logger.debug('Client disconnected during stream', { userId });
+
+            // 1. Signal the upstream HTTP request to abort
+            abortController.abort();
+
+            // 2. OpenAI SDK streams expose a `.controller` – try aborting it too
+            try {
+                (stream as any).controller?.abort?.();
+            } catch { /* best-effort */ }
         };
 
-        reply.raw.on('close', closeHandler);
-        // 'aborted' is also possible on some platforms/versions
-        reply.raw.on('error', closeHandler);
+        // Listen on the *incoming* request socket (client hung up / network drop)
+        request.raw.on('close', onDisconnect);
+        // Listen on the *outgoing* reply socket (write errors)
+        reply.raw.on('close', onDisconnect);
+        reply.raw.on('error', onDisconnect);
 
         let accumulatedUsage: any = null;
 
@@ -106,6 +124,8 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
                 }
 
                 // Extract usage data if present
+                // Handles both Chat Completions (chunk.usage) and
+                // Responses API (chunk.response?.usage) formats
                 const usage = this.openAIProxyService.extractUsage(chunk);
                 if (usage) {
                     accumulatedUsage = usage;
@@ -126,20 +146,25 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
                 reply.raw.write('data: [DONE]\n\n');
                 reply.raw.end();
             }
-        } catch (error) {
-            this.logger.error('Error during streaming', error, { userId });
+        } catch (error: any) {
+            // Abort errors are expected when client disconnects
+            if (error?.name === 'AbortError' || abortController.signal.aborted) {
+                this.logger.debug('Stream aborted (client disconnect)', { userId });
+            } else {
+                this.logger.error('Error during streaming', error, { userId });
+            }
+
             if (isClientConnected) {
-                // Try to write a specific error event if possible, or just end
                 reply.raw.write(`event: error\ndata: ${JSON.stringify({ message: 'Stream error' })}\n\n`);
                 reply.raw.end();
             }
         } finally {
-            reply.raw.removeListener('close', closeHandler);
-            reply.raw.removeListener('error', closeHandler);
+            request.raw.removeListener('close', onDisconnect);
+            reply.raw.removeListener('close', onDisconnect);
+            reply.raw.removeListener('error', onDisconnect);
 
             // Track token usage after stream completes
             if (accumulatedUsage) {
-                // Determine model from final chunk or fallback to request model
                 await this.openAIProxyService.trackUsage(userId, model, accumulatedUsage);
             }
         }
@@ -193,30 +218,24 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
 
         this.logger.info('Processing OpenAI proxy request (Responses API)', { userId, model: body.model });
 
-        // Create AbortController to handle client disconnects
+        // AbortController is used for the initial SDK call AND
+        // passed into handleStreamingRequest for ongoing disconnect handling
         const abortController = new AbortController();
         const signal = abortController.signal;
-
-        // Abort upstream request if client disconnects
-        const onClientDisconnect = () => {
-            this.logger.debug('Client disconnected, aborting upstream request', { userId });
-            abortController.abort();
-        };
-
-        reply.raw.on('close', onClientDisconnect);
-        reply.raw.on('error', onClientDisconnect);
 
         try {
             const isStreaming = body.stream === true;
 
             if (isStreaming) {
-                // Handle streaming response
                 const stream = await this.openAIProxyService.createResponseStream(
                     userId,
                     body as ResponseCreateParamsStreaming,
                     { signal }
                 );
-                return await this.handleStreamingRequest(stream, reply, userId, body.model as string);
+                // handleStreamingRequest owns the full disconnect lifecycle
+                return await this.handleStreamingRequest(
+                    stream, request, reply, abortController, userId, body.model as string
+                );
             } else {
                 // Handle non-streaming response
                 return await this.openAIProxyService.createResponse(
@@ -227,9 +246,6 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
             }
         } catch (error: any) {
             return this.handleOpenAIError(error, reply, 'Responses');
-        } finally {
-            reply.raw.removeListener('close', onClientDisconnect);
-            reply.raw.removeListener('error', onClientDisconnect);
         }
     }
 
@@ -247,18 +263,10 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
 
         this.logger.info('Processing OpenAI proxy request', { userId, model: body.model });
 
-        // Create AbortController to handle client disconnects
+        // AbortController is used for the initial SDK call AND
+        // passed into handleStreamingRequest for ongoing disconnect handling
         const abortController = new AbortController();
         const signal = abortController.signal;
-
-        // Abort upstream request if client disconnects
-        const onClientDisconnect = () => {
-            this.logger.debug('Client disconnected, aborting upstream request', { userId });
-            abortController.abort();
-        };
-
-        reply.raw.on('close', onClientDisconnect);
-        reply.raw.on('error', onClientDisconnect);
 
         try {
             const isStreaming = body.stream === true;
@@ -269,7 +277,10 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
                     body as ChatCompletionCreateParamsStreaming,
                     { signal }
                 );
-                await this.handleStreamingRequest(stream, reply, userId, body.model);
+                // handleStreamingRequest owns the full disconnect lifecycle
+                await this.handleStreamingRequest(
+                    stream, request, reply, abortController, userId, body.model
+                );
             } else {
                 // Handle non-streaming response
                 return await this.openAIProxyService.createChatCompletion(
@@ -280,9 +291,6 @@ export class OpenAIProxyControllerImpl implements IOpenAIProxyController {
             }
         } catch (error: any) {
             return this.handleOpenAIError(error, reply, 'Chat Completion');
-        } finally {
-            reply.raw.removeListener('close', onClientDisconnect);
-            reply.raw.removeListener('error', onClientDisconnect);
         }
     }
 }
