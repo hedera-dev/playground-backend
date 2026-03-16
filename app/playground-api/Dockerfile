@@ -31,7 +31,7 @@ RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 WORKDIR /pkgs_manager
 COPY install_package.sh ./
 
-RUN ./install_package.sh "go" "1.25.4" "https://storage.googleapis.com/playground_pkgs_dev/go-1.25.4.pkg.tar.gz" "28b4c35c34144161927b3af8785092a7a7e8abee8559829282c898a1d2890dcc"
+RUN ./install_package.sh "go" "1.25.4" "https://storage.googleapis.com/playground_pkgs_dev/go-1.25.4.pkg.tar.gz" "15209351e5f36e50719ef1bb614b80dda5be58b042301a9d2e9d9cd2f138e773"
 RUN ./install_package.sh "java" "21.0.2" "https://storage.googleapis.com/playground_pkgs_dev/java-21.0.2.pkg.tar.gz" "08ef880b93bc1759852c3feb7cf1609b9101fb2ed780598a21e3546462939173"
 RUN ./install_package.sh "node" "22.16.0" "https://storage.googleapis.com/playground_pkgs_dev/node-22.16.0.pkg.tar.gz" "ca5c111c6b49446bbf4e56ee5fe0d8e3a8ce6de081defbdbddfd6be6ee94f0e9"
 RUN ./install_package.sh "rust" "1.85.1" "https://storage.googleapis.com/playground_pkgs_dev/rust-1.85.1.pkg.tar.gz" "9c068349dc1576a1af2a2e98963973497d0c13175655464c785f764844406d83"
