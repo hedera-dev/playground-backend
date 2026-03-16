@@ -26,17 +26,6 @@ const fastify: FastifyInstance = Fastify({
   disableRequestLogging: true // Disable automatic request logging
 });
 
-// Register CORS for local development environment
-if (isLocal) {
-  console.log('Registering CORS for dev environment');
-  await fastify.register((await import('@fastify/cors')).default, {
-    origin: [
-      /^http:\/\/localhost:\d+$/
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  });
-}
 
 // Custom request logging with healthcheck filter
 fastify.addHook('onRequest', async (request, reply) => {
