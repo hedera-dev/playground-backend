@@ -83,6 +83,24 @@ resource "google_project_iam_custom_role" "github_actions_role" {
     "container.services.get",
     "container.services.list",
     "container.services.update",
+    # BackendConfig permissions (for API Gateway health checks)
+    "container.backendConfigs.create",
+    "container.backendConfigs.delete",
+    "container.backendConfigs.get",
+    "container.backendConfigs.list",
+    "container.backendConfigs.update",
+    # Ingress permissions (for API Gateway)
+    "container.ingresses.create",
+    "container.ingresses.delete",
+    "container.ingresses.get",
+    "container.ingresses.list",
+    "container.ingresses.update",
+    # ManagedCertificate permissions (for API Gateway TLS)
+    "container.managedCertificates.create",
+    "container.managedCertificates.delete",
+    "container.managedCertificates.get",
+    "container.managedCertificates.list",
+    "container.managedCertificates.update",
     # Logging (for deployment logs)
     "logging.logEntries.create"
   ]
