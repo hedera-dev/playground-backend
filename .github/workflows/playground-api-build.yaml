@@ -90,7 +90,7 @@ jobs:
       DOCKERFILE_PATH: ./app/playground-api/.
       GIT_TAG: playground-api-v${{ github.event.inputs.version }}
     permissions:
-      contents: "read"
+      contents: "write"
       id-token: "write"
 
     steps:
