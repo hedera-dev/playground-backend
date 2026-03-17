@@ -124,6 +124,10 @@ jobs:
         env:
           VERSION: ${{ github.event.inputs.version }}
         run: |
+          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOY}" | tail -n 1 | awk '{print $1}')
+          POD_STATUS=$(kubectl get pod "${NEW_POD}" --no-headers | awk '{print $3}')
+          POD_AGE=$(kubectl get pod "${NEW_POD}" --no-headers | awk '{print $5}')
           echo "## 🚀 AI Assistant Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Image Tag:** \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
@@ -135,3 +139,7 @@ jobs:
           echo "**Chart:** \`${CHART_NAME}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Model:** \`${{ vars.AI_ASSISTANT_MODEL }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pod:** \`${NEW_POD}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pod Status:** ${POD_AGE} ${POD_STATUS}" >> $GITHUB_STEP_SUMMARY
