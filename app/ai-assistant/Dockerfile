@@ -8,6 +8,7 @@
   
   # Install dependencies
   COPY package*.json ./
+  ENV CI=true
   RUN npm ci
   
   # Copy source code and tsconfig for compilation
