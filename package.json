@@ -1,0 +1,14 @@
+{
+  "name": "hedera-playground-backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prepare": "is-ci || husky install"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "19.8.1",
+    "@commitlint/config-conventional": "19.8.1",
+    "husky": "8.0.3",
+    "is-ci": "3.0.1"
+  }
+}
