@@ -1,43 +1,43 @@
-# ---- Builder: compila TypeScript y prepara node_modules sin dev ----
+# ---- Builder: compile TypeScript and prepare node_modules without dev deps ----
   FROM node:22.16.0-alpine AS builder
 
   WORKDIR /app
   
-  # Instalar dependencias del sistema necesarias para HEALTHCHECK (curl)
+  # Install system dependencies required for HEALTHCHECK (curl)
   RUN apk add --no-cache curl
   
-  # Instalar dependencias
+  # Install dependencies
   COPY package*.json ./
   RUN npm ci
   
-  # Copiar código fuente y tsconfig para compilar
+  # Copy source code and tsconfig for compilation
   COPY tsconfig.json ./
   COPY src ./src
   
-  # Compilar a dist/
+  # Compile to dist/
   RUN npm run build
   
-  # Quitar dependencias de desarrollo para preparar node_modules de producción
+  # Remove dev dependencies to prepare production node_modules
   RUN npm prune --omit=dev
   
-  # ---- Runtime: imagen mínima para ejecutar la app ----
+  # ---- Runtime: minimal image to run the app ----
   FROM node:22.16.0-alpine AS runtime
   
   ENV NODE_ENV=production
   WORKDIR /app
   
-  # Instalar curl en runtime para el HEALTHCHECK
+  # Install curl in runtime for HEALTHCHECK
   RUN apk add --no-cache curl
   
-  # Copiar sólo lo necesario desde el builder
+  # Copy only what is needed from the builder
   COPY --from=builder /app/node_modules ./node_modules
   COPY --from=builder /app/package*.json ./
   COPY --from=builder /app/dist ./dist
   
-  # Puerto expuesto por la app
+  # Port exposed by the app
   EXPOSE 3001
   
-  # Ejecutar
+  # Start the app
   CMD ["node", "dist/index.js"]
   
   
