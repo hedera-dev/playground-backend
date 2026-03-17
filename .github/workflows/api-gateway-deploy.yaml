@@ -74,7 +74,7 @@ jobs:
 
       - name: Waiting for pods to be Ready
         run: |
-          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}"
           echo "Waiting for '${DEPLOY}' pods to be in 'Running' state..."
           for i in {1..6}; do
             NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOY}" | tail -n 1 | awk '{print $1}')
@@ -91,7 +91,7 @@ jobs:
 
       - name: Get Logs from New Pod
         run: |
-          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}"
           NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOY}" | tail -n 1 | awk '{print $1}')
           echo "Fetching logs for the new pod: ${NEW_POD}"
           kubectl logs "${NEW_POD}"
@@ -101,7 +101,7 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}"
           NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOY}" | tail -n 1 | awk '{print $1}')
           POD_STATUS=$(kubectl get pod "${NEW_POD}" --no-headers | awk '{print $3}')
           echo "## 🚀 API Gateway Deployment Summary" >> $GITHUB_STEP_SUMMARY
