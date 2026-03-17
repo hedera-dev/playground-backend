@@ -30,10 +30,18 @@
   # Install curl in runtime for HEALTHCHECK
   RUN apk add --no-cache curl
   
+  # Create non-root user
+  RUN addgroup -g 1001 -S appgroup && \
+      adduser -u 1001 -S appuser -G appgroup
+  
   # Copy only what is needed from the builder
   COPY --from=builder /app/node_modules ./node_modules
   COPY --from=builder /app/package*.json ./
   COPY --from=builder /app/dist ./dist
+  
+  RUN chown -R appuser:appgroup /app
+  
+  USER appuser
   
   # Port exposed by the app
   EXPOSE 3001
