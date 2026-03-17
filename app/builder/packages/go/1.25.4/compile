@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+PKGDIR=/pkgs_manager/packages/go/1.25.4
+GOROOT=$PKGDIR/go
+TOOLDIR=$GOROOT/pkg/tool/linux_amd64
+PKG_STORE=$PKGDIR/pkg-store
+
+mv $1 $1.go
+filename=$1.go
+
+# Fast path: use go tool compile + go tool link directly (bypasses go build overhead)
+if [ -f "$PKGDIR/compile.importcfg.template" ] && [ -f "$PKGDIR/link.importcfg.template" ]; then
+    sed "s|PKG_STORE_PATH|$PKG_STORE|g" "$PKGDIR/compile.importcfg.template" > /tmp/compile.importcfg
+    sed "s|PKG_STORE_PATH|$PKG_STORE|g" "$PKGDIR/link.importcfg.template" > /tmp/link.importcfg
+
+    $TOOLDIR/compile \
+        -p main \
+        -importcfg /tmp/compile.importcfg \
+        -o main.a \
+        $filename || exit 1
+
+    echo "packagefile command-line-arguments=$PWD/main.a" >> /tmp/link.importcfg
+
+    $TOOLDIR/link \
+        -importcfg /tmp/link.importcfg \
+        -buildmode=exe \
+        -s -w \
+        -o binary \
+        main.a || exit 1
+
+    chmod +x binary
+    exit 0
+fi
+
+# Fallback: use go build if importcfg was not generated at build time
+mkdir -p .cache
+cp -r $PKGDIR/build-cache/* .cache/ 2>/dev/null || true
+cp $PKGDIR/go.mod .
+cp $PKGDIR/go.sum .
+
+CGO_ENABLED=0 \
+GOROOT=$GOROOT \
+GOMODCACHE=$PKGDIR/gopath/pkg/mod \
+GOPATH=$PKGDIR/gopath \
+GOCACHE=$PWD/.cache \
+GOPROXY=off \
+GOSUMDB=off \
+$GOROOT/bin/go build \
+  -buildvcs=false \
+  -ldflags="-s -w" \
+  -trimpath \
+  -o binary \
+  $filename

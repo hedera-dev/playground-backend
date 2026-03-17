@@ -20,7 +20,6 @@ services:
       RUN_MEMORY_LIMIT: 500000000  # 500 MB
       RUN_TIMEOUT: 45000 # 45 seconds
       MAX_FILE_SIZE: 20000000 # 20 MB
-      LIMIT_OVERRIDES: '{"go":{"run_memory_limit":1000000000,"max_open_files":700,"max_file_size":100000000}}' # 1 GB memory, 700 open files, 100 MB file size
     tmpfs:
       - /tmp:exec
     networks:
