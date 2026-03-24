@@ -13,8 +13,12 @@ export class OpenAIProxyService {
         private tokenUsageService: TokenUsageService,
         private userAIKeyService: UserAIKeyService
     ) {
+        if (!process.env.OPENAI_AGENT_API_KEY) {
+            this.logger.warn('OPENAI_AGENT_API_KEY not set, falling back to OPENAI_API_KEY. Agent and assistant usage will not be tracked separately.');
+        }
+
         this.systemOpenAI = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
+            apiKey: process.env.OPENAI_AGENT_API_KEY || process.env.OPENAI_API_KEY,
         });
     }
 
@@ -71,7 +75,6 @@ export class OpenAIProxyService {
         if (!body.stream_options) {
             body.stream_options = { include_usage: true };
         }
-
 
         return await openaiClient.chat.completions.create(body, options) as AsyncIterable<any>;
     }

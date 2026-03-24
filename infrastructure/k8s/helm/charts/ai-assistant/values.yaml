@@ -19,6 +19,7 @@ env:
   PORT: "3001"
   HOST: "0.0.0.0"
   OPENAI_API_KEY: ""
+  OPENAI_AGENT_API_KEY: ""
   VECTOR_STORE_ID: "vs_688ceeab314c8191a557a849b28cf815"
   redis:
     host: valkey-cluster-portal-dev-do-user-4434163-0.i.db.ondigitalocean.com

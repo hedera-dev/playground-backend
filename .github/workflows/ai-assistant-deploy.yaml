@@ -47,6 +47,7 @@ jobs:
         run: |
           yq eval ".image.tag = \"${VERSION}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.OPENAI_AGENT_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_AGENT_API_KEY }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.CODE_REVIEW_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
