@@ -5,8 +5,8 @@
 while read local_ref local_sha remote_ref remote_sha; do
   if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
     # New branch: try origin/main, fall back to listing all commits
-    if git rev-parse --verify origin/master >/dev/null 2>&1; then
-      RANGE="origin/master...$local_sha"
+    if git rev-parse --verify origin/develop >/dev/null 2>&1; then
+      RANGE="origin/develop...$local_sha"
     else
       RANGE="$local_sha"
     fi
