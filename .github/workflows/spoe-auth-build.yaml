@@ -1,4 +1,4 @@
-name: Build Playground API
+name: Build SPOE Auth
 
 on:
   workflow_dispatch:
@@ -23,8 +23,8 @@ jobs:
       contents: "read"
       id-token: "write"
     env:
-      DOCKER_IMAGE_PATH: /playground/playground-api
-      TEMP_IMAGE_PATH: /tmp/playground-api
+      DOCKER_IMAGE_PATH: /playground/spoe-auth
+      TEMP_IMAGE_PATH: /tmp/spoe-auth
     outputs:
       develop_image_tag: ${{ steps.set-tag.outputs.develop_image_tag }}
     steps:
@@ -85,10 +85,10 @@ jobs:
     needs: build_on_main
     environment: ${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}
     env:
-      DOCKER_IMAGE_PATH: /playground/playground-api
-      TEMP_IMAGE_PATH: /tmp/playground-api
-      DOCKERFILE_PATH: ./app/playground-api/.
-      GIT_TAG: playground-api-v${{ github.event.inputs.version }}
+      DOCKER_IMAGE_PATH: /playground/spoe-auth
+      TEMP_IMAGE_PATH: /tmp/spoe-auth
+      DOCKERFILE_PATH: ./app/spoe-auth/.
+      GIT_TAG: spoe-auth-v${{ github.event.inputs.version }}
     permissions:
       contents: "write"
       id-token: "write"
@@ -173,9 +173,11 @@ jobs:
         env:
           VERSION: ${{ github.event.inputs.version }}
         run: |
-          echo "## 🐳 Docker Image Built Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "## 🐳 SPOE Auth Docker Image Built Successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Image Tag:** \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** \`${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Full Image:**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -201,9 +203,3 @@ jobs:
           git checkout "${{ github.ref }}"
           git tag -a "${GIT_TAG}" -m "Version ${VERSION}"
           git push origin "${GIT_TAG}"
-
-      - name: Display success
-        env:
-          VERSION: ${{ github.event.inputs.version }}
-        run: |
-          echo "Successfully pushed: ${{ vars.GCP_ARTIFACT_REPOSITORY }}${DOCKER_IMAGE_PATH}:${VERSION}"

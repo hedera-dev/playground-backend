@@ -13,7 +13,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
     source_image = "projects/debian-cloud/global/images/debian-11-bullseye-v20241009"
     auto_delete  = true
     boot         = true
-    disk_size_gb = 20
+    disk_size_gb = 40
     disk_type    = "pd-standard"
     type = "PERSISTENT"
   }

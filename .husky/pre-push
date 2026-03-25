@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Detect changed files between the commits being pushed and the remote
+while read local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    # New branch: try origin/main, fall back to listing all commits
+    if git rev-parse --verify origin/main >/dev/null 2>&1; then
+      RANGE="origin/main...$local_sha"
+    else
+      RANGE="$local_sha"
+    fi
+  else
+    RANGE="$remote_sha..$local_sha"
+  fi
+
+  if [ "$RANGE" = "$local_sha" ]; then
+    CHANGED_FILES=$(git diff-tree --no-commit-id -r --name-only "$local_sha" 2>/dev/null)
+  else
+    CHANGED_FILES=$(git diff --name-only "$RANGE" 2>/dev/null)
+  fi
+
+  if echo "$CHANGED_FILES" | grep -q "^app/ai-assistant/"; then
+    echo "Building app/ai-assistant..."
+    (cd "$(git rev-parse --show-toplevel)/app/ai-assistant" && npm run build) || {
+      echo "Build failed in app/ai-assistant. Push aborted."
+      exit 1
+    }
+  fi
+done
+
+exit 0

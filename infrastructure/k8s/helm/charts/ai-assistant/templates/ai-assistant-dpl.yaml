@@ -42,6 +42,11 @@ spec:
                 secretKeyRef:
                   name: "{{ .Release.Name }}-ai-assistant-secrets"
                   key: openai_api_key
+            - name: OPENAI_AGENT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: "{{ .Release.Name }}-ai-assistant-secrets"
+                  key: openai_agent_api_key
             - name: INSTRUCTIONS_PATH
               value: "/config/instructions.txt"
             - name: CODE_REVIEW_MODEL

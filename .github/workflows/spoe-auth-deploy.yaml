@@ -1,4 +1,4 @@
-name: Deploy AI Assistant
+name: Deploy SPOE Auth
 
 on:
   workflow_dispatch:
@@ -8,6 +8,15 @@ on:
         required: true
         default: "latest"
         type: string
+      debug:
+        description: "Enable debug mode"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
 jobs:
   deploy:
     name: Deploy - ${{ github.event.inputs.version }}
@@ -17,8 +26,8 @@ jobs:
       contents: "read"
       id-token: "write"
     env:
-      HELM_RELEASE_SUFFIX: ai
-      CHART_NAME: ai-assistant
+      HELM_RELEASE_SUFFIX: sa
+      CHART_NAME: spoe-auth
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -35,7 +44,6 @@ jobs:
           echo "c02cc9c58a3a1531c224406973d3d8b8c4e47bf5064c3af48a812c8c19d2d46e  /tmp/yq" | sha256sum -c
           sudo install /tmp/yq /usr/local/bin/yq
 
-
       - name: Set up Helm
         uses: azure/setup-helm@bf6a7d304bc2fdb57e0331155b7ebf2c504acf0a # v4
         with:
@@ -46,15 +54,8 @@ jobs:
           VERSION: ${{ github.event.inputs.version }}
         run: |
           yq eval ".image.tag = \"${VERSION}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.OPENAI_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_API_KEY }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.OPENAI_AGENT_API_KEY = \"${{ secrets.AI_ASSISTANT_OPENAI_AGENT_API_KEY }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.redis.password = \"${{ secrets.REDIS_PASSWORD }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.PG_PASSWORD = \"${{ secrets.PSQL_PASSWORD }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.CODE_REVIEW_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.CODE_INTEGRATION_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.GENERAL_ASSISTANT_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.EXECUTION_ANALYZER_MODEL = \"${{ vars.AI_ASSISTANT_MODEL }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
-          yq eval ".env.TOKENS_LIMIT_PER_MONTH = \"${{ vars.AI_ASSISTANT_TOKENS_LIMIT_PER_MONTH }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.pasetoV4PublicKeyHex = \"${{ vars.SPOE_AUTH_PASETO_PUBLIC_KEY_HEX }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.debug = \"${{ github.event.inputs.debug }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
 
       - name: Configure Google Cloud Auth
         uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13
@@ -89,14 +90,14 @@ jobs:
           fi
 
       - name: Restart deployment
-        if: ${{ github.ref != 'refs/heads/main' }}
+        if: ${{ github.ref != 'refs/heads/master' }}
         run: |
           echo "Restarting deployment.."
-          kubectl rollout restart deployment "${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          kubectl rollout restart deployment "${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}"
 
       - name: Waiting for pods to be Ready
         run: |
-          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}"
           echo "Waiting for '${DEPLOY}' pods to be in 'Running' state..."
           for i in {1..6}; do
             NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOY}" | tail -n 1 | awk '{print $1}')
@@ -113,7 +114,7 @@ jobs:
 
       - name: Get Logs from New Pod
         run: |
-          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}"
           NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOY}" | tail -n 1 | awk '{print $1}')
           echo "Fetching logs for the new pod: ${NEW_POD}"
           kubectl logs "${NEW_POD}"
@@ -125,21 +126,21 @@ jobs:
         env:
           VERSION: ${{ github.event.inputs.version }}
         run: |
-          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}-dpl"
+          DEPLOY="${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}-${CHART_NAME}"
           NEW_POD=$(kubectl get pods --no-headers --sort-by=.metadata.creationTimestamp | grep "^${DEPLOY}" | tail -n 1 | awk '{print $1}')
           POD_STATUS=$(kubectl get pod "${NEW_POD}" --no-headers | awk '{print $3}')
           POD_AGE=$(kubectl get pod "${NEW_POD}" --no-headers | awk '{print $5}')
-          echo "## 🚀 AI Assistant Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 SPOE Auth Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Image Tag:** \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Debug:** \`${{ github.event.inputs.debug }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** \`${{ github.ref == 'refs/heads/master' && 'production' || 'develop' }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Helm Release:** \`${{ vars.HELM_RELEASE_PREFIX }}${HELM_RELEASE_SUFFIX}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Chart:** \`${CHART_NAME}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Model:** \`${{ vars.AI_ASSISTANT_MODEL }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Pod:** \`${NEW_POD}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

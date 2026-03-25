@@ -149,6 +149,7 @@ go mod download
 
 # Build
 go build -o spoe-auth main.go
+```
 
 ### Testing
 
