@@ -2,7 +2,7 @@ import { openai, createOpenAI } from '@ai-sdk/openai';
 import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { ICodeReviewAgent } from '../types/index.js';
 import { proposeCodeTool } from '../tools/CodeTools.js';
-import { PROPMT_CODE_REVIEW_TWO_AGENT } from '../../../utils/prompts.js';
+import { PROMPT_CODE_REVIEW_TWO_AGENT } from '../../../utils/prompts.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { CodeIntegrationAgent } from './CodeIntegrationAgent.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
@@ -44,7 +44,7 @@ export class CodeReviewAgent implements ICodeReviewAgent {
       const result = streamText({
         model: openaiProvider(context.model || this.model),
         messages,
-        system: PROPMT_CODE_REVIEW_TWO_AGENT,
+        system: PROMPT_CODE_REVIEW_TWO_AGENT,
         tools: {
           proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, context),
           searchHedera: searchHederaTool()
