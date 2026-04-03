@@ -2,7 +2,7 @@ import { openai, createOpenAI } from '@ai-sdk/openai';
 import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { ICodeReviewAgent } from '../types/index.js';
 import { proposeCodeTool } from '../tools/CodeTools.js';
-import { PROMPT_CODE_REVIEW_TWO_AGENT } from '../../../utils/prompts.js';
+import { AGENT_LAB_PROMPTS, CONTRACT_BUILDER_PROMPTS, PLAYGROUND_PROMPTS } from '../../../utils/prompts/index.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
 import { CodeIntegrationAgent } from './CodeIntegrationAgent.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
@@ -41,10 +41,22 @@ export class CodeReviewAgent implements ICodeReviewAgent {
       // Use user's API key if provided (BYOK), otherwise use system key
       const openaiProvider = context.userApiKey ? createOpenAI({ apiKey: context.userApiKey }) : openai;
 
+      let systemPrompt: string;
+      switch (metadata.portalType) {
+        case 'agent_lab':
+          systemPrompt = AGENT_LAB_PROMPTS.CODE_REVIEW;
+          break;
+        case 'contract_builder':
+          systemPrompt = CONTRACT_BUILDER_PROMPTS.CODE_REVIEW;
+          break;
+        default:
+          systemPrompt = PLAYGROUND_PROMPTS.CODE_REVIEW;
+      }
+
       const result = streamText({
         model: openaiProvider(context.model || this.model),
         messages,
-        system: PROMPT_CODE_REVIEW_TWO_AGENT,
+        system: systemPrompt,
         tools: {
           proposeCode: proposeCodeTool(this.applyCodeAgent, metadata.code, context),
           searchHedera: searchHederaTool()

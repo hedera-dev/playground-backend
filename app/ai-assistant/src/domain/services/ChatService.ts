@@ -1,6 +1,6 @@
 import { convertToModelMessages, UIMessage } from 'ai';
 import { createLogger, AppLogger } from '../../utils/logger.js';
-import { UserMetadata, UserMetadataType, ExecutionContext } from '../../types.js';
+import { UserMetadata, UserMetadataType, ExecutionContext, PortalType } from '../../types.js';
 import { CodeReviewAgent, GeneralAssistantAgent, ExecutionAnalyzerAgent, IMockAgent } from '../agents/index.js';
 import { MockAgent } from '../agents/implementations/MockAgent.js';
 import {
@@ -45,7 +45,7 @@ export class ChatService {
     }
   }
 
-  async streamChat(userMessages: UIMessage[], userId: string, sessionId: string) {
+  async streamChat(userMessages: UIMessage[], userId: string, sessionId: string, portalType?: PortalType) {
     const requestLogger = this.logger.child({ userId, sessionId });
 
     const metadata = this.getMetadata(userMessages);
@@ -53,6 +53,11 @@ export class ChatService {
     if (!metadata) {
       requestLogger.error('No metadata found in request');
       throw new ValidationError('No metadata found in request', ErrorReason.MISSING_METADATA);
+    }
+
+    // Use portalType from parameter if not present in metadata
+    if (portalType && !metadata.portalType) {
+      metadata.portalType = portalType;
     }
 
     let model: string | undefined;
@@ -79,7 +84,8 @@ export class ChatService {
 
     requestLogger.info('Processing chat request', {
       messageCount: userMessages.length,
-      inputLength: userInput.length
+      inputLength: userInput.length,
+      portalType: metadata.portalType
     });
 
     requestLogger.debug('Full user input', { userInput, metadata, apiKeyFound: Boolean(apiKey) });

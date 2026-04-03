@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ChatService } from '../../../domain/services/ChatService.js';
-import { ChatSession } from '../../../types.js';
+import { ChatSession, PortalType } from '../../../types.js';
 import { UIMessage } from 'ai';
 import { NotFoundError, ErrorReason } from '../../../utils/errors.js';
 import { BASE_PATH } from '../../../utils/constants.js';
@@ -20,11 +20,18 @@ export class ChatControllerImpl {
   }
 
   private async startConversation(request: FastifyRequest, reply: FastifyReply) {
-    const body = request.body as { messages: UIMessage[], userId: string, id: string, model?: string, useCustomKey?: boolean };
+    const body = request.body as { 
+      messages: UIMessage[], 
+      userId: string, 
+      id: string, 
+      model?: string, 
+      useCustomKey?: boolean,
+      type?: PortalType
+    };
     const userId = (request.headers['x-user-id'] as string) || 'unknown';
     const sessionId = body.id;
-    const { messages } = body;
-    return this.chatService.streamChat(messages, userId, sessionId);
+    const { messages, type } = body;
+    return this.chatService.streamChat(messages, userId, sessionId, type);
   }
 
   private async getConversationHistory(request: FastifyRequest, reply: FastifyReply): Promise<any> {
