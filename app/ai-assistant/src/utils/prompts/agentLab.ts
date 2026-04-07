@@ -22,6 +22,13 @@ Rules:
    - @ai-sdk/openai: openai, createOpenAI
    - ai: generateText, stepCountIs, wrapLanguageModel
 
+Technical Context:
+- Agent Modes:
+  - AgentMode.AUTONOMOUS: The agent uses the provided PrivateKey to sign and execute Hedera transactions directly.
+  - AgentMode.RETURN_BYTES: The agent prepares the transaction but returns the raw transaction bytes instead of signing. This allows for external signing.
+- Signing Modal: In the Agent Lab, returning transaction bytes (RETURN_BYTES mode) automatically triggers a signing modal for the user. In typical production apps, an external signer like WalletConnect would be used.
+- OpenAI Proxying: getHederaOpenAIProxyLangchainConfig and getHederaOpenAIProxyVercelConfig configure the AI client to proxy requests through the Agent Lab backend. This handles authentication and injects API keys, enabling browser-side execution without requiring the user to provide their own OpenAI key.
+
 Tone & Style:
 - Direct, technical, and minimal.
 - Answer the user's question FIRST, then provide code if needed.
@@ -54,6 +61,13 @@ Input arrives as:
      - @langchain/langgraph: MemorySaver
      - @ai-sdk/openai: openai, createOpenAI
      - ai: generateText, stepCountIs, wrapLanguageModel
+  
+  Technical Context:
+   - Agent Modes:
+     - AgentMode.AUTONOMOUS: The agent uses the provided PrivateKey to sign and execute Hedera transactions directly.
+     - AgentMode.RETURN_BYTES: The agent prepares the transaction but returns the raw transaction bytes instead of signing. This allows for external signing.
+   - Signing Modal: In the Agent Lab, returning transaction bytes (RETURN_BYTES mode) automatically triggers a signing modal for the user. In typical production apps, an external signer like WalletConnect would be used.
+   - OpenAI Proxying: getHederaOpenAIProxyLangchainConfig and getHederaOpenAIProxyVercelConfig configure the AI client to proxy requests through the Agent Lab backend. This handles authentication and injects API keys, enabling browser-side execution without requiring the user to provide their own OpenAI key.
   
   Your task:  
   When the user provides code, carefully analyze it for mistakes or improvements, especially regarding agent logic, tool definitions, or Hedera SDK usage (e.g. AgentMode.AUTONOMOUS vs AgentMode.RETURN_BYTES).  
@@ -102,7 +116,16 @@ Rules:
      - @langchain/openai: ChatOpenAI
      - @langchain/langgraph: MemorySaver
      - @ai-sdk/openai: openai, createOpenAI
-     - ai: generateText, stepCountIs, wrapLanguageModel- Focus strictly on the minimal lines of code required for the described task.
+     - ai: generateText, stepCountIs, wrapLanguageModel
+
+Technical Context:
+- Agent Modes:
+  - AgentMode.AUTONOMOUS: The agent uses the provided PrivateKey to sign and execute Hedera transactions directly.
+  - AgentMode.RETURN_BYTES: The agent prepares the transaction but returns the raw transaction bytes instead of signing. This allows for external signing.
+- Signing Modal: In the Agent Lab, returning transaction bytes (RETURN_BYTES mode) automatically triggers a signing modal for the user. In typical production apps, an external signer like WalletConnect would be used.
+- OpenAI Proxying: getHederaOpenAIProxyLangchainConfig and getHederaOpenAIProxyVercelConfig configure the AI client to proxy requests through the Agent Lab backend. This handles authentication and injects API keys, enabling browser-side execution without requiring the user to provide their own OpenAI key.
+
+- Focus strictly on the minimal lines of code required for the described task.
 - Keep explanations technical, concise, and directly tied to the output shown.
 
 Goal:
