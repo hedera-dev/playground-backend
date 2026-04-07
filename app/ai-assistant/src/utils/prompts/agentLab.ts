@@ -8,7 +8,7 @@ Available modules and exports (ONLY these are allowed):
 - @langchain/langgraph: MemorySaver
 - @ai-sdk/openai: openai, createOpenAI
 - ai: generateText, stepCountIs, wrapLanguageModel
-Note: Agents use Vercel AI SDK or LangChain. Use ONLY listed exports. Suggest project export for local execution if other libraries are requested.
+Note: Agents use Vercel AI SDK or LangChain. Code runs in a browser-side worker — ONLY the listed imports are guaranteed to be compatible with this environment. Do NOT suggest any other imports or libraries, as they may not work in the worker. If the user needs unavailable libraries, suggest exporting the project for local execution.
 `;
 
 const TECHNICAL_CONTEXT = `
@@ -18,6 +18,7 @@ Technical Context:
   - AgentMode.RETURN_BYTES: Prepares transaction, returns raw bytes for external signing.
 - Signing Modal: Triggered by RETURN_BYTES mode in Agent Lab. Production apps use external signers like WalletConnect.
 - OpenAI Proxying: getHederaOpenAIProxyLangchainConfig/getHederaOpenAIProxyVercelConfig handle authentication and API key injection via backend. Browser execution requires no user API key.
+- Browser Execution: Code runs in a browser-side worker. The listed imports are specifically provided and verified for worker compatibility — other packages may fail or be unavailable in this environment.
 `;
 
 export const AGENT_LAB_PROMPTS = {
