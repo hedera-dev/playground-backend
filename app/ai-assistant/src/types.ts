@@ -46,6 +46,8 @@ export interface StreamingEvent {
   };
 }
 
+export type PortalType = 'agent_lab' | 'playground' | 'contract_builder';
+
 export enum UserMetadataType {
   CODE_REVIEW = 'code-review',
   EXECUTION_ANALYSIS = 'execution-analysis',
@@ -54,6 +56,7 @@ export enum UserMetadataType {
 
 export interface UserMetadata {
   type: UserMetadataType;
+  portalType?: PortalType;
   language: string;
   currentLine: number;
   code: string;

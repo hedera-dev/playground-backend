@@ -4,7 +4,7 @@ import { ICodeIntegrationAgent } from '../types/index.js';
 import { ApplyCodeChangesSchema, ProposeCodeChange } from '../tools/CodeTools.js';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { AppLogger, createLogger } from '../../../utils/logger.js';
-import { PROMPT_CODE_INTEGRATION } from '../../../utils/prompts.js';
+import { PROMPT_CODE_INTEGRATION } from '../../../utils/prompts/index.js';
 import { ExecutionContext } from '../../../types.js';
 
 export class CodeIntegrationAgent implements ICodeIntegrationAgent {
