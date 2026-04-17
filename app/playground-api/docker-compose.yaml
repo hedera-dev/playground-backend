@@ -1,7 +1,7 @@
 # Local compose aligned with:
 # infrastructure/terraform/gcloud/app/playground-api/templates/playground/docker-compose.yaml
 # Image required: playground-api:latest-local (local tag only; no Artifact Registry path).
-# Build with Dockerfile (same runtimes as dev/prod via GCS packages). See docs/docker-local.md.
+# Build with Dockerfile (same runtimes as dev/prod via GCS packages). See docs/setup-local.md.
 
 services:
   playground-api:
