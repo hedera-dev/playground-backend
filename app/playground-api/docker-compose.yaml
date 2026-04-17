@@ -1,0 +1,43 @@
+# Local compose aligned with:
+# infrastructure/terraform/gcloud/app/playground-api/templates/playground/docker-compose.yaml
+# Image required: playground-api:latest-local (local tag only; no Artifact Registry path).
+# Build with Dockerfile (same runtimes as dev/prod via GCS packages). See docs/docker-local.md.
+
+services:
+  playground-api:
+    image: playground-api:latest-local
+    platform: linux/amd64
+    container_name: playground-api-local
+    restart: always
+    privileged: true
+    # Production maps 80:2000; 2000:2000 avoids binding privileged port 80 on the host for local use.
+    ports:
+      - "2000:2000"
+    environment:
+      COMPILE_CPU_TIME: 10000 # 10 seconds
+      COMPILE_MEMORY_LIMIT: 500000000 # 500 MB
+      COMPILE_TIMEOUT: 20000 # 20 seconds
+      DISABLE_NETWORKING: "false"
+      LOG_LEVEL: INFO
+      MAX_CONCURRENT_JOBS: 100
+      MAX_OPEN_FILES: 200
+      OUTPUT_MAX_SIZE: 102400 # 100 KB
+      # Leave PUBLIC_KEY unset for local dev so /api/playground/* does not require Bearer/session (do not expose without auth).
+      # PUBLIC_KEY: ca7fd8408500327b40d4da02dbc34881b2a379ccd3913a9d06e810a8fdb66329
+      RUN_CPU_TIME: 60000 # 60 seconds
+      RUN_MEMORY_LIMIT: 500000000 # 500 MB
+      RUN_TIMEOUT: 45000 # 45 seconds
+      MAX_FILE_SIZE: 20000000 # 20 MB
+    tmpfs:
+      - /tmp:exec
+    networks:
+      playground_net:
+        ipv4_address: 172.20.0.10
+
+networks:
+  playground_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
