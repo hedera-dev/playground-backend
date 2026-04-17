@@ -11,6 +11,17 @@ Level of log output to provide.
 
 One of `DEBUG`, `INFO`, `WARN`, `ERROR` or `NONE`
 
+## Public key (PASETO)
+
+```yaml
+key: PUBLIC_KEY
+default: (empty)
+```
+
+Hex-encoded 32-byte **public** key used to verify PASETO tokens from `Authorization: Bearer …` or the Hedera portal session cookie. Must be exactly 64 hex characters when set.
+
+When empty, auth middleware skips token checks for playground routes (not recommended outside local experiments).
+
 ## Bind Address
 
 ```yaml
