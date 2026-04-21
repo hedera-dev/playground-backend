@@ -1,7 +1,7 @@
 import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { IGeneralAssistantAgent } from '../types/Agent.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
-import { PROMPT_GENERAL } from '../../../utils/prompts.js';
+import { AGENT_LAB_PROMPTS, CONTRACT_BUILDER_PROMPTS, PLAYGROUND_PROMPTS } from '../../../utils/prompts/index.js';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -34,10 +34,22 @@ export class GeneralAssistantAgent implements IGeneralAssistantAgent {
     // Use user's API key if provided (BYOK), otherwise use system key
     const openaiProvider = context.userApiKey ? createOpenAI({ apiKey: context.userApiKey }) : openai;
 
+    let systemPrompt: string;
+    switch (metadata.portalType) {
+      case 'agent_lab':
+        systemPrompt = AGENT_LAB_PROMPTS.GENERAL;
+        break;
+      case 'contract_builder':
+        systemPrompt = CONTRACT_BUILDER_PROMPTS.GENERAL;
+        break;
+      default:
+        systemPrompt = PLAYGROUND_PROMPTS.GENERAL;
+    }
+
     const result = streamText({
       model: openaiProvider(context.model || this.model),
       messages,
-      system: PROMPT_GENERAL,
+      system: systemPrompt,
       tools: {
         searchHedera: searchHederaTool()
       },

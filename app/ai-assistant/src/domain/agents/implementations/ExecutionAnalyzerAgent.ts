@@ -1,7 +1,7 @@
 import { ModelMessage, stepCountIs, streamText } from 'ai';
 import { IExecutionAnalyzerAgent } from '../types/Agent.js';
 import { UserMetadata, ExecutionContext } from '../../../types.js';
-import { PROMPT_EXECUTION_ANALYSIS } from '../../../utils/prompts.js';
+import { AGENT_LAB_PROMPTS, CONTRACT_BUILDER_PROMPTS, PLAYGROUND_PROMPTS } from '../../../utils/prompts/index.js';
 import { openai, createOpenAI } from '@ai-sdk/openai';
 import { CacheClient } from '../../../infrastructure/persistence/RedisConnector.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -32,10 +32,22 @@ export class ExecutionAnalyzerAgent implements IExecutionAnalyzerAgent {
     // Use user's API key if provided (BYOK), otherwise use system key
     const openaiProvider = context.userApiKey ? createOpenAI({ apiKey: context.userApiKey }) : openai;
 
+    let systemPrompt: string;
+    switch (metadata.portalType) {
+      case 'agent_lab':
+        systemPrompt = AGENT_LAB_PROMPTS.EXECUTION_ANALYSIS;
+        break;
+      case 'contract_builder':
+        systemPrompt = CONTRACT_BUILDER_PROMPTS.EXECUTION_ANALYSIS;
+        break;
+      default:
+        systemPrompt = PLAYGROUND_PROMPTS.EXECUTION_ANALYSIS;
+    }
+
     const result = streamText({
       model: openaiProvider(context.model || this.model),
       messages,
-      system: PROMPT_EXECUTION_ANALYSIS,
+      system: systemPrompt,
       tools: {
         searchHedera: searchHederaTool()
       },

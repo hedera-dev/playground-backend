@@ -10,3 +10,8 @@ Dockerfile*
 README.md
 coverage
 .tmp
+
+docs/
+docker-compose.yaml
+docker-compose*.yml
+install_package_local.sh
