@@ -404,6 +404,30 @@ class Job {
                 event_bus
             );
             emit_event_bus_result('run', run);
+
+            // Transaction IDs captured by the instrumented code
+            // Absent when the snippet ran no transactions or the language isn't instrumented.
+            try {
+                const tx_path = path.join(
+                    box.dir,
+                    'submission',
+                    '.playground-transactions.json'
+                );
+                const raw = (await fs.read_file(tx_path)).toString().trim();
+                const seen = new Set();
+                const txs = [];
+                for (const line of raw.split('\n')) {
+                    if (!line) continue;
+                    const tx = JSON.parse(line);
+                    if (tx && tx.id && !seen.has(tx.id)) {
+                        seen.add(tx.id);
+                        txs.push(tx);
+                    }
+                }
+                run.transactions = { v: 1, txs };
+            } catch {
+                run.transactions = null;
+            }
         }
 
         this.state = job_states.EXECUTED;

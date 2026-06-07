@@ -4,78 +4,72 @@ const router = express.Router();
 const runtime = require('../runtime');
 const { Job } = require('../job');
 const package = require('../package');
+const { instrument } = require('../instrument');
 const logger = require('logplease').create('api/playground');
 
-function get_job(body) {
+async function get_job(body) {
     let {
         language,
         version,
         files,
     } = body;
 
-    return new Promise((resolve, reject) => {
-        if (!language || typeof language !== 'string') {
-            return reject({
-                message: 'language is required as a string',
-            });
+    if (!language || typeof language !== 'string') {
+        throw { message: 'language is required as a string' };
+    }
+    if (!version || typeof version !== 'string') {
+        throw { message: 'version is required as a string' };
+    }
+    if (!files || !Array.isArray(files)) {
+        throw { message: 'files is required as an array' };
+    }
+    for (const [i, file] of files.entries()) {
+        if (typeof file.content !== 'string') {
+            throw { message: `files[${i}].content is required as a string` };
         }
-        if (!version || typeof version !== 'string') {
-            return reject({
-                message: 'version is required as a string',
-            });
-        }
-        if (!files || !Array.isArray(files)) {
-            return reject({
-                message: 'files is required as an array',
-            });
-        }
-        for (const [i, file] of files.entries()) {
-            if (typeof file.content !== 'string') {
-                return reject({
-                    message: `files[${i}].content is required as a string`,
-                });
-            }
-        }
+    }
 
-        const rt = runtime.get_latest_runtime_matching_language_version(
-            language,
-            version
-        );
-        if (rt === undefined) {
-            return reject({
-                message: `${language}-${version} runtime is unknown`,
-            });
-        }
+    const rt = runtime.get_latest_runtime_matching_language_version(
+        language,
+        version
+    );
+    if (rt === undefined) {
+        throw { message: `${language}-${version} runtime is unknown` };
+    }
 
-        if (
-            rt.language !== 'file' &&
-            !files.some(file => !file.encoding || file.encoding === 'utf8')
-        ) {
-            return reject({
-                message: 'files must include at least one utf8 encoded file',
-            });
-        }
+    if (
+        rt.language !== 'file' &&
+        !files.some(file => !file.encoding || file.encoding === 'utf8')
+    ) {
+        throw { message: 'files must include at least one utf8 encoded file' };
+    }
 
-        resolve(
-            new Job({
-                runtime: rt,
-                args: [],
-                stdin: '',
-                files,
-                timeouts: {
-                    run: rt.timeouts.run,
-                    compile: rt.timeouts.compile,
-                },
-                cpu_times: {
-                    run: rt.cpu_times.run,
-                    compile: rt.cpu_times.compile,
-                },
-                memory_limits: {
-                    run: rt.memory_limits.run,
-                    compile: rt.memory_limits.compile,
-                },
-            })
-        );
+    // Rewrite the code so executed transaction IDs are captured into a sidecar file
+    // (best-effort; returns the original source if it can't instrument). Only the utf8
+    // code files are touched.
+    for (const file of files) {
+        if (!file.encoding || file.encoding === 'utf8') {
+            file.content = await instrument(language, file.content);
+        }
+    }
+
+    return new Job({
+        runtime: rt,
+        args: [],
+        stdin: '',
+        files,
+        timeouts: {
+            run: rt.timeouts.run,
+            compile: rt.timeouts.compile,
+        },
+        cpu_times: {
+            run: rt.cpu_times.run,
+            compile: rt.cpu_times.compile,
+        },
+        memory_limits: {
+            run: rt.memory_limits.run,
+            compile: rt.memory_limits.compile,
+        },
     });
 }
 
