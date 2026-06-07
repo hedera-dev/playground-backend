@@ -424,7 +424,7 @@ class Job {
                         txs.push(tx);
                     }
                 }
-                run.transactions = { v: 1, txs };
+                run.transactions = { txs };
             } catch {
                 run.transactions = null;
             }
