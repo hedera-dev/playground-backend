@@ -40,6 +40,8 @@ class Job {
         this.files = files.map((file, i) => ({
             name: `file${i}.code`,
             content: file.content,
+            //Used by the compile fallback: if the instrumented build fails, the original is compiled instead.
+            original: file.original,
             encoding: ['base64', 'hex', 'utf8'].includes(file.encoding)
                 ? file.encoding
                 : 'utf8',
@@ -118,6 +120,14 @@ class Job {
                 mode: 0o700,
             });
             await fs.write_file(file_path, file_content);
+
+            // Also write the uninstrumented source so the compile step can fall back to it.
+            if (file.original != null) {
+                await fs.write_file(
+                    `${file_path}.orig`,
+                    Buffer.from(file.original, file.encoding)
+                );
+            }
         }
 
         this.state = job_states.PRIMED;
@@ -380,6 +390,24 @@ class Job {
             );
             emit_event_bus_result('compile', compile);
             compile_errored = compile.code !== 0;
+
+            //Compile fallback: if the instrumented sources fail to build, recompile the original uninstrumented sources so the run still works.
+            if (compile_errored && code_files.every(f => f.original != null)) {
+                const orig_compile = await this.safe_call(
+                    box,
+                    'compile',
+                    code_files.map(x => `${x.name}.orig`),
+                    this.timeouts.compile,
+                    this.cpu_times.compile,
+                    this.memory_limits.compile,
+                    event_bus
+                );
+                if (orig_compile.code === 0) {
+                    compile = orig_compile;
+                    compile_errored = false;
+                }
+            }
+
             if (!compile_errored) {
                 const old_box_dir = box.dir;
                 box = await this.#create_isolate_box();
@@ -404,6 +432,38 @@ class Job {
                 event_bus
             );
             emit_event_bus_result('run', run);
+
+            // Transaction IDs captured by the instrumented code (sidecar written inside the
+            // sandbox by the user's run). Parse line-by-line and skip any partial/malformed line
+            // so one interleaved or truncated write doesn't discard every captured id.
+            run.transactions = null;
+            try {
+                const tx_path = path.join(
+                    box.dir,
+                    'submission',
+                    '.playground-transactions.json'
+                );
+                const raw = (await fs.read_file(tx_path)).toString();
+                const seen = new Set();
+                const txs = [];
+                for (const line of raw.split('\n')) {
+                    const trimmed = line.trim();
+                    if (!trimmed) continue;
+                    let tx;
+                    try {
+                        tx = JSON.parse(trimmed);
+                    } catch {
+                        continue; // partial/interleaved write — skip just this line
+                    }
+                    if (tx && tx.id && !seen.has(tx.id)) {
+                        seen.add(tx.id);
+                        txs.push(tx);
+                    }
+                }
+                run.transactions = { txs };
+            } catch {
+                // sidecar absent → run.transactions stays null
+            }
         }
 
         this.state = job_states.EXECUTED;
