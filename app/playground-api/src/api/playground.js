@@ -46,10 +46,16 @@ async function get_job(body) {
 
     // Rewrite the code so executed transaction IDs are captured into a sidecar file
     // (best-effort; returns the original source if it can't instrument). Only the utf8
-    // code files are touched.
+    // code files are touched. The original is kept so the compile step can fall back to it
+    // if the instrumented build fails (compiled languages).
     for (const file of files) {
         if (!file.encoding || file.encoding === 'utf8') {
-            file.content = await instrument(language, file.content);
+            const original = file.content;
+            const instrumented = await instrument(language, original);
+            file.content = instrumented;
+            if (instrumented !== original) {
+                file.original = original;
+            }
         }
     }
 

@@ -6,7 +6,7 @@ const count = (haystack, needle) => haystack.split(needle).length - 1;
 
 // ─── JavaScript (the validated path) ───────────────────────────────────────────
 
-test('js: wraps an execute call and prepends the helper', async () => {
+test('js: wraps an execute call and appends the helper', async () => {
     const src = [
         'const { Client } = require("@hiero-ledger/sdk");',
         'async function main() {',
@@ -90,6 +90,35 @@ test('js: helper is injected exactly once', async () => {
     assert.strictEqual(count(out, 'function __pgRecord(p)'), 1);
 });
 
+test('js: single-expression source is wrapped and stays valid (helper appended, hoisted)', async () => {
+    const out = await instrument('javascript', 'tx.execute(client)');
+    assert.doesNotThrow(() => new Function(out), 'valid JS');
+    assert.match(out, /__pgRecord\(tx\.execute\(client\)\)/, 'call wrapped');
+    assert.ok(
+        out.indexOf('__pgRecord(tx') < out.indexOf('function __pgRecord'),
+        'helper is appended after the call (relies on function hoisting)'
+    );
+});
+
+test('js: a synchronous execute() keeps its value (not turned into a Promise)', async () => {
+    // The query matches `.execute()` by name only, so a non-Hedera synchronous execute must
+    // not be forced async. Run the instrumented output with a sync, non-thenable execute().
+    const out = await instrument('javascript', 'function run(obj) { return obj.execute(); }');
+    const run = new Function('obj', `${out}\nreturn run(obj);`);
+    const result = run({ execute: () => 42 });
+    assert.strictEqual(result, 42, 'sync return value preserved');
+});
+
+test('js: helper is appended, preserving user line numbers', async () => {
+    const src = 'async function main() {\n  await tx.execute(client);\n}\nmain();';
+    const out = await instrument('javascript', src);
+    assert.ok(out.startsWith('async function main()'), 'user code still starts at line 1');
+    assert.ok(
+        out.indexOf('async function main') < out.indexOf('function __pgRecord'),
+        'helper sits after the user code'
+    );
+});
+
 // ─── Passthrough / safety ───────────────────────────────────────────────────────
 
 test('unsupported language is returned unchanged', async () => {
@@ -170,8 +199,119 @@ test('java: without a class, returns unchanged', async () => {
     assert.strictEqual(out, src, 'no class body to host the helper → no instrumentation');
 });
 
+test('java: leaves statement-position (void) execute unwrapped', async () => {
+    const src = [
+        'class Main {',
+        '    public static void main(String[] a) throws Exception {',
+        '        executor.execute(runnable);',
+        '        var resp = tx.execute(client);',
+        '    }',
+        '}',
+    ].join('\n');
+
+    const out = await instrument('java', src);
+
+    assert.ok(out.includes('executor.execute(runnable);'), 'void statement execute left as-is');
+    assert.ok(!out.includes('__pgRecord(executor.execute'), 'void statement execute not wrapped');
+    assert.match(out, /__pgRecord\(tx\.execute\(client\)\)/, 'assigned execute wrapped');
+});
+
+test('java: injects the helper into every class', async () => {
+    const src = [
+        'class A { void m() throws Exception { var x = t.execute(c); } }',
+        'class B { void n() throws Exception { var y = u.execute(c); } }',
+    ].join('\n');
+
+    const out = await instrument('java', src);
+
+    assert.strictEqual(
+        count(out, 'private static <T> T __pgRecord(T r)'),
+        2,
+        'helper injected into both classes'
+    );
+});
+
+test('java: injects the helper into an interface (default method)', async () => {
+    const src = [
+        'interface Svc {',
+        '    default void go(Tx tx, Client c) throws Exception {',
+        '        var resp = tx.execute(c);',
+        '    }',
+        '}',
+    ].join('\n');
+
+    const out = await instrument('java', src);
+
+    assert.match(out, /private static <T> T __pgRecord\(T r\)/, 'helper injected into interface');
+    assert.match(out, /__pgRecord\(tx\.execute\(c\)\)/, 'execute wrapped');
+});
+
+test('java: injects the helper into a record', async () => {
+    const src = [
+        'record Job(int n) {',
+        '    void run(Tx tx, Client c) throws Exception { var r = tx.execute(c); }',
+        '}',
+    ].join('\n');
+
+    const out = await instrument('java', src);
+
+    assert.match(out, /private static <T> T __pgRecord\(T r\)/, 'helper injected into record');
+    assert.match(out, /__pgRecord\(tx\.execute\(c\)\)/, 'execute wrapped');
+});
+
+test('java: an execute() only inside an enum is left uninstrumented (no out-of-scope helper)', async () => {
+    const src = [
+        'enum E {',
+        '    A;',
+        '    void run(Tx tx, Client c) throws Exception { var r = tx.execute(c); }',
+        '}',
+    ].join('\n');
+
+    const out = await instrument('java', src);
+    assert.strictEqual(out, src, 'enum has no helper host → execute not wrapped, source unchanged');
+});
+
+test('java: enum execute is skipped while a class execute in the same file is wrapped', async () => {
+    const src = [
+        'class Main { void m(Tx tx, Client c) throws Exception { var a = tx.execute(c); } }',
+        'enum E { A; void r(Tx tx, Client c) throws Exception { var b = tx.execute(c); } }',
+    ].join('\n');
+
+    const out = await instrument('java', src);
+
+    assert.strictEqual(count(out, '__pgRecord(tx.execute(c))'), 1, 'only the class execute is wrapped');
+    assert.strictEqual(
+        count(out, 'private static <T> T __pgRecord(T r)'),
+        1,
+        'helper lives only in the class, never the enum'
+    );
+});
+
+test('java: execute inside an anonymous class reuses the enclosing class helper', async () => {
+    const src = [
+        'class Main {',
+        '    void m(Tx tx, Client c) {',
+        '        Runnable r = new Runnable() {',
+        '            public void run() {',
+        '                try { var x = tx.execute(c); } catch (Exception e) {}',
+        '            }',
+        '        };',
+        '    }',
+        '}',
+    ].join('\n');
+
+    const out = await instrument('java', src);
+
+    assert.match(out, /__pgRecord\(tx\.execute\(c\)\)/, 'execute in anonymous class wrapped');
+    assert.strictEqual(
+        count(out, 'private static <T> T __pgRecord(T r)'),
+        1,
+        'helper injected only in the named class, not the anonymous body'
+    );
+});
+
 // ── Rust ──
-test('rust: wraps awaited execute (? kept outside), prepends helper, leaves the rest', async () => {
+test('rust: wraps awaited execute (? kept outside), appends helper, leaves the rest', async () => {
     const src = [
         'use hedera::*;',
         '#[tokio::main]',
@@ -196,5 +336,24 @@ test('rust: wraps awaited execute (? kept outside), prepends helper, leaves the 
         'awaited execute without ? also wrapped'
     );
     assert.ok(!out.includes('__pg_record(resp.get_receipt'), 'get_receipt not wrapped');
-    assert.match(out, /fn __pg_record<T: 'static, E>/, 'helper prepended');
+    assert.match(out, /fn __pg_record<T: 'static, E>/, 'helper appended');
+});
+
+test('rust: helper is appended, preserving user line numbers', async () => {
+    const src = [
+        'use hedera::*;',
+        '#[tokio::main]',
+        'async fn main() -> anyhow::Result<()> {',
+        '    let r = tx.execute(&client).await?;',
+        '    Ok(())',
+        '}',
+    ].join('\n');
+
+    const out = await instrument('rust', src);
+
+    assert.ok(out.startsWith('use hedera::*;'), 'user code still starts at line 1');
+    assert.ok(
+        out.indexOf('async fn main') < out.indexOf('fn __pg_record'),
+        'helper sits after the user code'
+    );
 });

@@ -1,14 +1,5 @@
 const SIDECAR = '.playground-transactions.json';
 
-/** Index to prepend at: after a shebang line if present, else 0. */
-function prepend_index(source) {
-    if (source.startsWith('#!')) {
-        const nl = source.indexOf('\n');
-        if (nl !== -1) return nl + 1;
-    }
-    return 0;
-}
-
 // ─── JavaScript ───────────────────────────────────────────────────────────────
 
 const JS_QUERY = `
@@ -17,17 +8,19 @@ const JS_QUERY = `
     property: (property_identifier) @method (#eq? @method "execute"))) @call
 `;
 
-const JS_HELPER = `const __pgFs = require("fs");
-function __pgRecord(p) {
-  return Promise.resolve(p).then(function (r) {
+// Wraps only thenables: a synchronous `.execute()` must keep
+// returning its value, not get turned into a Promise.
+const JS_HELPER = `function __pgRecord(p) {
+  function __pgWrite(r) {
     try {
       if (r != null && r.transactionId != null) {
-        __pgFs.appendFileSync(${JSON.stringify(SIDECAR)},
+        require("fs").appendFileSync(${JSON.stringify(SIDECAR)},
           JSON.stringify({ id: String(r.transactionId), type: (r.constructor && r.constructor.name) || null }) + "\\n");
       }
     } catch (e) {}
     return r;
-  });
+  }
+  return p && typeof p.then === "function" ? p.then(__pgWrite) : __pgWrite(p);
 }
 `;
 
@@ -36,8 +29,10 @@ const javascript = {
     query: JS_QUERY,
     open: '__pgRecord(',
     close: ')',
+    // Append at EOF (function is hoisted) to keep user line numbers intact; order 2 keeps the
+    // helper outside a call that closes exactly at EOF.
     plan_helper(root, source) {
-        return [{ index: prepend_index(source), text: JS_HELPER + '\n', order: 2 }];
+        return [{ index: source.length, text: '\n' + JS_HELPER, order: 2 }];
     },
 };
 
@@ -98,15 +93,17 @@ const go = {
         const lists = query_nodes(grammar, root, '(import_spec_list) @list', 'list');
         if (lists.length === 0) return null; // no grouped import block → don't instrument
         return [
-            { index: lists[0].endIndex - 1, text: GO_IMPORTS, order: 2 },
-            { index: source.length, text: '\n' + GO_HELPER + '\n', order: 2 },
+            { index: lists[0].endIndex - 1, text: GO_IMPORTS, order: -1 },
+            { index: source.length, text: '\n' + GO_HELPER + '\n', order: -1 },
         ];
     },
 };
 
 // ─── Java ─────────────────────────────────────────────────────────────────────
-// No top-level functions: the helper is a static method injected into the first class body.
-// Fully-qualified types avoid touching the user's imports. Reflection reads transactionId.
+// No top-level functions: the static helper is injected into every named type body that can host
+// one (class/record class_body, interface_body); fully-qualified types avoid touching imports.
+// No compile fallback in Java, so filter_call wraps only an execute() with a helper-hosting
+// ancestor — enum bodies and anything else stay uninstrumented (no out-of-scope __pgRecord).
 
 const JAVA_QUERY = `
 (method_invocation
@@ -139,22 +136,56 @@ const java = {
     query: JAVA_QUERY,
     open: '__pgRecord(',
     close: ')',
+    // Wrap an execute() only when a helper-hosting type body is one of its ancestors; otherwise
+    // __pgRecord wouldn't be in scope and the file wouldn't compile. Also skips statement-position
+    // void execute() (e.g. ExecutorService.execute).
+    filter_call(node) {
+        if (node.parent && node.parent.type === 'expression_statement') return false;
+        for (let ancestor = node.parent; ancestor; ancestor = ancestor.parent) {
+            if (ancestor.type === 'interface_body') return true;
+            if (ancestor.type === 'class_body') {
+                // A named class/record body hosts the helper; an anonymous one (inside an
+                // object_creation_expression) relies on an outer named host, so keep climbing.
+                if (
+                    ancestor.parent &&
+                    ancestor.parent.type !== 'object_creation_expression'
+                )
+                    return true;
+            }
+            // Reached an enum body without finding a host first → no helper here, don't wrap.
+            if (ancestor.type === 'enum_body') return false;
+        }
+        return false;
+    },
     plan_helper(root, source, grammar, query_nodes) {
+        // Inject into every named class/record body and every interface body. Anonymous class
+        // bodies are skipped: they can't host the static helper and their enclosing named type
+        // already has it.
         const bodies = query_nodes(
             grammar,
             root,
-            '(class_declaration body: (class_body) @body)',
+            '[(class_body) (interface_body)] @body',
             'body'
+        ).filter(
+            body =>
+                body.type === 'interface_body' ||
+                (body.parent &&
+                    body.parent.type !== 'object_creation_expression')
         );
-        if (bodies.length === 0) return null; // no class to host the helper
-        return [{ index: bodies[0].endIndex - 1, text: JAVA_HELPER, order: 2 }];
+        if (bodies.length === 0) return null; // no type body to host the helper
+        return bodies.map(body => ({
+            index: body.endIndex - 1,
+            text: JAVA_HELPER,
+            order: -1,
+        }));
     },
 };
 
 // ─── Rust ─────────────────────────────────────────────────────────────────────
 // We wrap the `…execute(…).await` expression (the awaited Result), keeping any `?` outside.
 // No reflection in Rust: downcast via std::any::Any to the SDK's TransactionResponse (crate
-// `hedera`); non-transaction executes downcast to None and are ignored.
+// `hedera`); non-transaction executes downcast to None and are ignored. The helper fn is
+// appended at EOF (Rust items are order-independent) so the user's line numbers stay intact.
 
 const RUST_QUERY = `
 (await_expression
@@ -181,8 +212,10 @@ const rust = {
     query: RUST_QUERY,
     open: '__pg_record(',
     close: ')',
+    // order 2 (> the wrap's close=1): see the JavaScript helper — keeps the appended helper
+    // after a wrap that closes exactly at EOF.
     plan_helper(root, source) {
-        return [{ index: prepend_index(source), text: RUST_HELPER + '\n', order: 2 }];
+        return [{ index: source.length, text: '\n' + RUST_HELPER, order: 2 }];
     },
 };
 
