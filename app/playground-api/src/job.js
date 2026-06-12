@@ -122,9 +122,11 @@ class Job {
             await fs.write_file(file_path, file_content);
 
             // Also write the uninstrumented source so the compile step can fall back to it.
+            // Named fileN.orig (not fileN.code.orig): rustc derives the crate name from the
+            // file stem, and a stem with a dot ("file0.code") is an invalid crate name.
             if (file.original != null) {
                 await fs.write_file(
-                    `${file_path}.orig`,
+                    file_path.replace(/\.code$/, '.orig'),
                     Buffer.from(file.original, file.encoding)
                 );
             }
@@ -396,7 +398,7 @@ class Job {
                 const orig_compile = await this.safe_call(
                     box,
                     'compile',
-                    code_files.map(x => `${x.name}.orig`),
+                    code_files.map(x => x.name.replace(/\.code$/, '.orig')),
                     this.timeouts.compile,
                     this.cpu_times.compile,
                     this.memory_limits.compile,
