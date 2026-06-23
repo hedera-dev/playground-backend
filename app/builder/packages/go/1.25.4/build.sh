@@ -9,7 +9,7 @@ rm go1.25.4.linux-amd64.tar.gz
 source environment
 
 go mod init hedera-playground
-go get github.com/hiero-ledger/hiero-sdk-go/v2/sdk@v2.73.0
+go get github.com/hiero-ledger/hiero-sdk-go/v2/sdk@v2.80.0
 go mod tidy
 
 echo "Pre-compiling Hiero SDK packages..."

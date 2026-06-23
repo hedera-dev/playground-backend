@@ -11,7 +11,7 @@ fi
 
 source environment
 
-bin/npm install -g @hiero-ledger/sdk@2.75.0
+bin/npm install -g @hiero-ledger/sdk@2.85.0
 
 if [ $? -ne 0 ]; then
   echo "Error: Cannot install @hiero-ledger/sdk"
