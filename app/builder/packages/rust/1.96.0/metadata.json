@@ -1,0 +1,7 @@
+{
+    "language": "rust",
+    "version": "1.96.0",
+    "aliases": [
+        "rs"
+    ]
+}

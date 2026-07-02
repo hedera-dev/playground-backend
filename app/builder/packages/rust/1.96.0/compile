@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+
+# https://stackoverflow.com/questions/38041331/rust-compiler-cant-find-crate-for-std
+# Rust compiler needs to find the stdlib to link against
+
+# Build the --extern flags dynamically from the pre-compiled Hiero SDK rlibs.
+# Resolving them at runtime (instead of hardcoding hashed paths) keeps this
+# script valid across toolchain/SDK upgrades — the rlib hashes change on every
+# rebuild, so a static list would silently break after a version bump.
+EXTERNS=""
+for rlib in "$HEDERA_SDK"/release/deps/lib*.rlib; do
+  filename=$(basename "$rlib")
+  name=$(echo "$filename" | sed -E 's/^lib([a-zA-Z0-9_]+)(-[a-f0-9]+)?\.rlib$/\1/')
+  if [[ -n "$name" ]]; then
+    EXTERNS+="--extern $name=$rlib "
+  fi
+done
+
+rustc --edition=2021 -o binary \
+    -L ${RUST_INSTALL_LOC}/rustc/lib \
+    -L ${RUST_INSTALL_LOC}/rust-std-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib \
+    -L ${HEDERA_SDK}/release/deps \
+    $EXTERNS \
+    "$@"
+
+chmod +x binary
