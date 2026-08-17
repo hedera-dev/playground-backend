@@ -20,7 +20,30 @@ default: (empty)
 
 Hex-encoded 32-byte **public** key used to verify PASETO tokens from `Authorization: Bearer …` or the Hedera portal session cookie. Must be exactly 64 hex characters when set.
 
-When empty, auth middleware skips token checks for playground routes (not recommended outside local experiments).
+When empty **and no ZITADEL issuer is configured**, auth middleware skips token checks for playground routes (local dev only — with either branch configured the middleware always enforces auth).
+
+## ZITADEL JWT branch (identity migration)
+
+```yaml
+key:
+    - ZITADEL_ISSUER
+    - ZITADEL_AUDIENCE
+    - ZITADEL_JWKS_URL
+    - JWT_USER_CLAIM
+    - JWT_CLOCK_SKEW_SECONDS
+    - ACCEPT_LEGACY_PASETO
+default:
+    - (empty — branch off)
+    - (empty — required when issuer is set)
+    - "{ZITADEL_ISSUER}/oauth/v2/keys"
+    - urn:hedera:portal_user_id
+    - 30
+    - true
+```
+
+Setting `ZITADEL_ISSUER` enables a second verification branch: Bearer/cookie tokens shaped like a JWT (`eyJ…`, two dots) are verified against the ZITADEL JWKS (RS256, `iss`, `aud` must contain `ZITADEL_AUDIENCE`, `exp`/`nbf` with `JWT_CLOCK_SKEW_SECONDS` leeway) and refused unless they carry the `JWT_USER_CLAIM` claim — machine tokens without a portal identity never pass. All other tokens keep using the legacy PASETO branch.
+
+`ZITADEL_AUDIENCE` is mandatory alongside the issuer; the service refuses to start without it. Set `ACCEPT_LEGACY_PASETO=false` to retire the PASETO branch once every client sends ZITADEL tokens.
 
 ## Bind Address
 

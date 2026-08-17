@@ -16,6 +16,14 @@ services:
       MAX_OPEN_FILES: 200
       OUTPUT_MAX_SIZE: 102400  # 100 KB
       PUBLIC_KEY: ca7fd8408500327b40d4da02dbc34881b2a379ccd3913a9d06e810a8fdb66329
+      # ZITADEL JWT branch (BRA-469): off while ZITADEL_ISSUER stays unset.
+      # To enable during the identity migration, set both (issuer must equal
+      # the token iss; audience is the ZITADEL project id). Legacy PASETO
+      # keeps working alongside until ACCEPT_LEGACY_PASETO is set to "false"
+      # (BRA-427 retirement).
+      # ZITADEL_ISSUER: https://<zitadel domain>
+      # ZITADEL_AUDIENCE: <zitadel project id>
+      # ACCEPT_LEGACY_PASETO: "true"
       RUN_CPU_TIME: 60000 # 60 seconds
       RUN_MEMORY_LIMIT: 500000000  # 500 MB
       RUN_TIMEOUT: 45000 # 45 seconds

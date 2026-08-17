@@ -15,6 +15,38 @@ const options = {
             x => x.length == 0 || /^[a-fA-F0-9]{64}$/.test(x) || `Publick key must be exactly 64 hexadecimal characters`,
         ],
     },
+    accept_legacy_paseto: {
+        desc: 'Set to false to retire the legacy PASETO branch once every client sends ZITADEL tokens (BRA-427)',
+        default: true,
+        parser: x => x === 'true',
+        validators: [x => typeof x === 'boolean' || `${x} is not a boolean`],
+    },
+    zitadel_issuer: {
+        desc: 'Enables the ZITADEL JWT branch (BRA-469); must equal the token iss claim',
+        default: '',
+        validators: [],
+    },
+    zitadel_jwks_url: {
+        desc: 'JWKS endpoint; defaults to {zitadel_issuer}/oauth/v2/keys',
+        default: '',
+        validators: [],
+    },
+    zitadel_audience: {
+        desc: 'ZITADEL project id the token aud must contain; required when zitadel_issuer is set',
+        default: '',
+        validators: [],
+    },
+    jwt_user_claim: {
+        desc: 'Claim carrying the portal user id; a valid token without it is refused (no sub fallback)',
+        default: 'urn:hedera:portal_user_id',
+        validators: [],
+    },
+    jwt_clock_skew_seconds: {
+        desc: 'exp/nbf leeway in seconds for the ZITADEL JWT branch',
+        default: 30,
+        parser: parse_int,
+        validators: [(x, raw) => !is_nan(x) || `${raw} is not a number`],
+    },
     log_level: {
         desc: 'Level of data to log',
         default: 'INFO',

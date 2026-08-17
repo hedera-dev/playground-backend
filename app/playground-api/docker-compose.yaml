@@ -24,6 +24,12 @@ services:
       OUTPUT_MAX_SIZE: 102400 # 100 KB
       # Leave PUBLIC_KEY unset for local dev so /api/playground/* does not require Bearer/session (do not expose without auth).
       # PUBLIC_KEY: ca7fd8408500327b40d4da02dbc34881b2a379ccd3913a9d06e810a8fdb66329
+      # ZITADEL JWT branch (BRA-469): set both to accept ZITADEL access tokens
+      # from the local PoC (issuer must equal the token iss; audience is the
+      # ZITADEL project id). Off while unset.
+      # ZITADEL_ISSUER: http://localhost:8080
+      # ZITADEL_AUDIENCE: <zitadel project id>
+      # ACCEPT_LEGACY_PASETO: "true"
       RUN_CPU_TIME: 60000 # 60 seconds
       RUN_MEMORY_LIMIT: 500000000 # 500 MB
       LIMIT_OVERRIDES: '{"java":{"max_process_count":256,"run_memory_limit":768000000}}' # 768 MB
