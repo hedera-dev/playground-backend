@@ -166,3 +166,26 @@ curl -H "Authorization: Bearer valid_token" http://localhost:8080/check
 # Test health endpoint
 curl http://localhost:8080/health
 ```
+## Local end-to-end harness (dev/)
+
+Mirrors the api-gateway chart's HAProxy front (same SPOE wiring and
+processing budget) with the agent and a header-reflecting echo backend, so
+both auth branches can be exercised against a real local ZITADEL:
+
+```bash
+cd dev
+ZITADEL_AUDIENCE=<project id> \
+PASETO_V4_PUBLIC_KEY_HEX=<legacy public key hex> \
+docker compose -f docker-compose.dev.yaml up --build
+```
+
+Then, through the gateway on :8081 (`/api/playground/assistant/...`): a
+ZITADEL access token carrying `urn:hedera:portal_user_id` gets a 200 and the
+echo response shows the injected `X-User-ID`; a machine token without the
+claim, a missing token or a foreign path are refused. The `zitadel-mirror`
+service exists because ZITADEL routes instances by Host header, so containers
+cannot reach a host-local instance directly.
+
+Measured here (and the reason the chart's `timeout processing` is 50ms): the
+first request on a fresh SPOE connection costs ~18ms of TCP + HELLO
+handshake, follow-ups ~5ms, and token validation itself ~0.3ms per branch.
