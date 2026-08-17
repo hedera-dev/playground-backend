@@ -56,6 +56,10 @@ jobs:
           yq eval ".image.tag = \"${VERSION}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.pasetoV4PublicKeyHex = \"${{ vars.SPOE_AUTH_PASETO_PUBLIC_KEY_HEX }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.debug = \"${{ github.event.inputs.debug }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          # ZITADEL JWT branch (BRA-468): with the vars unset the branch stays off.
+          yq eval ".env.zitadelIssuer = \"${{ vars.SPOE_AUTH_ZITADEL_ISSUER }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.zitadelAudience = \"${{ vars.SPOE_AUTH_ZITADEL_AUDIENCE }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.acceptLegacyPaseto = \"${{ vars.SPOE_AUTH_ACCEPT_LEGACY_PASETO || 'true' }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
 
       - name: Configure Google Cloud Auth
         uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13

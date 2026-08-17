@@ -33,6 +33,18 @@ spec:
               value: {{ .Values.env.requireIss | quote }}
             - name: USER_FIELD
               value: {{ .Values.env.userField | quote }}
+            - name: ACCEPT_LEGACY_PASETO
+              value: {{ .Values.env.acceptLegacyPaseto | quote }}
+            - name: ZITADEL_ISSUER
+              value: {{ .Values.env.zitadelIssuer | quote }}
+            - name: ZITADEL_JWKS_URL
+              value: {{ .Values.env.zitadelJwksUrl | quote }}
+            - name: ZITADEL_AUDIENCE
+              value: {{ .Values.env.zitadelAudience | quote }}
+            - name: JWT_USER_CLAIM
+              value: {{ .Values.env.jwtUserClaim | quote }}
+            - name: JWT_CLOCK_SKEW_SECONDS
+              value: {{ .Values.env.jwtClockSkewSeconds | quote }}
             - name: ADMIN_API_KEY
               value: {{ .Values.env.adminApiKey | quote }}
             - name: AUTH_ARG

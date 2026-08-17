@@ -64,7 +64,13 @@ Request → HAProxy → SPOE Filter → spoe-auth → HAProxy → Backend
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PASETO_V4_PUBLIC_KEY_HEX` | ✅ | - | Ed25519 public key in HEX format (32 bytes) |
+| `PASETO_V4_PUBLIC_KEY_HEX` | ✅* | - | Ed25519 public key in HEX format (32 bytes) for the legacy PASETO branch |
+| `ACCEPT_LEGACY_PASETO` | ❌ | `true` | `false` disables the legacy PASETO branch entirely |
+| `ZITADEL_ISSUER` | ✅* | - | Enables the ZITADEL JWT branch; must equal the token's `iss` |
+| `ZITADEL_JWKS_URL` | ❌ | `{ZITADEL_ISSUER}/oauth/v2/keys` | JWKS endpoint (fetched at startup, refreshed in background and on unknown `kid`) |
+| `ZITADEL_AUDIENCE` | with issuer | - | ZITADEL project id the token's `aud` array must contain |
+| `JWT_USER_CLAIM` | ❌ | `urn:hedera:portal_user_id` | Claim carrying the portal user id; a valid token without it is refused (no `sub` fallback) |
+| `JWT_CLOCK_SKEW_SECONDS` | ❌ | `30` | `exp`/`nbf` leeway for the JWT branch |
 | `MODE` | ❌ | `http` | Service mode: `http` or `spoe` |
 | `LISTEN_ADDR` | ❌ | `:9000` (spoe) / `:8080` (http) | Listen address |
 | `IGNORE_EXP` | ❌ | `false` | Ignore token expiration validation |
