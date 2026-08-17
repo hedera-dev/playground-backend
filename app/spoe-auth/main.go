@@ -30,6 +30,9 @@ ZITADEL_JWKS_URL           (optional)   -> defaults to {ZITADEL_ISSUER}/oauth/v2
 ZITADEL_AUDIENCE           (required with ZITADEL_ISSUER) -> project id the token's aud must contain
 JWT_USER_CLAIM             (optional)   -> claim carrying the portal user id (default "urn:hedera:portal_user_id")
 JWT_CLOCK_SKEW_SECONDS     (optional)   -> exp/nbf leeway for the JWT branch (default 30)
+JWKS_CACHE_TTL             (optional)   -> background JWKS refresh interval, Go duration (default "10m")
+JWKS_HTTP_TIMEOUT          (optional)   -> bound on every JWKS fetch, on-miss ones included (default "5s")
+ZITADEL_ALLOWED_CLIENT_IDS (optional)   -> comma-separated client_id allow-list; empty accepts any client of the audience
 
 (*) at least one branch must be configured.
 
@@ -52,6 +55,41 @@ func debugLog(format string, args ...interface{}) {
 	if debugMode {
 		log.Printf("[DEBUG] "+format, args...)
 	}
+}
+
+// logAuthOutcome is the dual-accept observability line (BRA-468): always on,
+// one entry per verification, never carrying token material. Legacy traffic
+// reaching zero on the paseto branch is what green-lights turning
+// ACCEPT_LEGACY_PASETO off.
+func logAuthOutcome(branch string, ok bool, reason string) {
+	outcome := "ok"
+	if !ok {
+		outcome = "deny"
+	}
+	log.Printf("auth branch=%s outcome=%s reason=%q", branch, outcome, reason)
+}
+
+// describeToken is safe for logs: shape and length only, never the value.
+func describeToken(token string) string {
+	switch {
+	case token == "":
+		return "none"
+	case isJWT(token):
+		return fmt.Sprintf("jwt len=%d", len(token))
+	case strings.HasPrefix(token, "v4.public."):
+		return fmt.Sprintf("paseto len=%d", len(token))
+	default:
+		return fmt.Sprintf("unknown len=%d", len(token))
+	}
+}
+
+// cookieNames is safe for logs: which cookies came in, never their values.
+func cookieNames(cookieStr string) string {
+	names := make([]string, 0, 4)
+	for name := range parseCookies(cookieStr) {
+		names = append(names, name)
+	}
+	return strings.Join(names, ",")
 }
 
 type Verifier struct {
@@ -103,16 +141,20 @@ func (v *Verifier) verifyToken(token string) (string, error) {
 	// format whose branch is off is refused, never downgraded.
 	if isJWT(token) {
 		if v.jwt == nil {
+			logAuthOutcome("jwt", false, "branch not configured")
 			return "", errors.New("zitadel jwt received but the jwt branch is not configured")
 		}
 		userID, err := v.jwt.verify(token)
-		if err == nil {
-			debugLog("token verified via jwt branch")
+		if err != nil {
+			logAuthOutcome("jwt", false, err.Error())
+			return "", err
 		}
-		return userID, err
+		logAuthOutcome("jwt", true, "")
+		return userID, nil
 	}
 
 	if v.pub == nil {
+		logAuthOutcome("paseto", false, "branch disabled")
 		return "", errors.New("legacy paseto received but the paseto branch is disabled")
 	}
 	parser := paseto.NewParserWithoutExpiryCheck() // generic parser
@@ -131,10 +173,10 @@ func (v *Verifier) verifyToken(token string) (string, error) {
 
 	tok, err := parser.ParseV4Public(*v.pub, token, nil)
 	if err != nil {
-		debugLog("token verification failed: %v", err)
+		logAuthOutcome("paseto", false, err.Error())
 		return "", err
 	}
-	debugLog("token verified via legacy paseto branch")
+	logAuthOutcome("paseto", true, "")
 
 	// Extract accountId (or sub)
 	acc := ""
@@ -249,17 +291,26 @@ func startSPOE(v *Verifier, addr string, s spoeSettings) error {
 		}
 		debugLog("SPOE: Message found: %s", s.messageName)
 
-		// Log received arguments in debug mode only
+		// Log received arguments in debug mode only. Credentials never reach
+		// the log, debug included: tokens are described by shape and length,
+		// cookies by name (values.yaml ships debug enabled, so a raw dump
+		// here would put bearer tokens in the deployed gateway's logs).
 		if debugMode {
 			debugLog("SPOE: Received arguments:")
 			if auth, ok := mes.KV.Get("auth"); ok {
-				debugLog("SPOE:   auth = %v", auth)
+				if s, ok2 := auth.(string); ok2 {
+					debugLog("SPOE:   auth = %s", describeToken(strings.TrimSpace(strings.TrimPrefix(s, "Bearer "))))
+				}
 			}
 			if apiKey, ok := mes.KV.Get("api_key"); ok {
-				debugLog("SPOE:   api_key = %v", apiKey)
+				if s, ok2 := apiKey.(string); ok2 {
+					debugLog("SPOE:   api_key = present len=%d", len(s))
+				}
 			}
 			if cookie, ok := mes.KV.Get("cookie"); ok {
-				debugLog("SPOE:   cookie = %v", cookie)
+				if s, ok2 := cookie.(string); ok2 {
+					debugLog("SPOE:   cookies = %s", cookieNames(s))
+				}
 			}
 			if method, ok := mes.KV.Get("method"); ok {
 				debugLog("SPOE:   method = %v", method)
@@ -389,7 +440,29 @@ func main() {
 				skew = time.Duration(n) * time.Second
 			}
 		}
-		jv, err := newJWTVerifier(zitadelIssuer, os.Getenv("ZITADEL_JWKS_URL"), os.Getenv("ZITADEL_AUDIENCE"), os.Getenv("JWT_USER_CLAIM"), skew)
+		jv, err := newJWTVerifier(JWTVerifierConfig{
+			Issuer:      zitadelIssuer,
+			JWKSURL:     os.Getenv("ZITADEL_JWKS_URL"),
+			Audience:    os.Getenv("ZITADEL_AUDIENCE"),
+			UserClaim:   os.Getenv("JWT_USER_CLAIM"),
+			Leeway:      skew,
+			CacheTTL:    envDuration("JWKS_CACHE_TTL", 10*time.Minute),
+			HTTPTimeout: envDuration("JWKS_HTTP_TIMEOUT", 5*time.Second),
+			AllowedClientIDs: func() []string {
+				raw := strings.TrimSpace(os.Getenv("ZITADEL_ALLOWED_CLIENT_IDS"))
+				if raw == "" {
+					return nil
+				}
+				parts := strings.Split(raw, ",")
+				out := make([]string, 0, len(parts))
+				for _, p := range parts {
+					if p = strings.TrimSpace(p); p != "" {
+						out = append(out, p)
+					}
+				}
+				return out
+			}(),
+		})
 		if err != nil {
 			log.Fatalf("jwt verifier init error: %v", err)
 		}
@@ -447,4 +520,17 @@ func env(k, d string) string {
 		return d
 	}
 	return v
+}
+
+func envDuration(k string, d time.Duration) time.Duration {
+	v := strings.TrimSpace(os.Getenv(k))
+	if v == "" {
+		return d
+	}
+	parsed, err := time.ParseDuration(v)
+	if err != nil || parsed <= 0 {
+		log.Printf("ignoring %s=%q: not a positive Go duration", k, v)
+		return d
+	}
+	return parsed
 }

@@ -227,6 +227,13 @@ data:
         # transaction after an idle close, HAProxy then drops the connection
         # and each request pays the handshake again — a permanent 401 loop.
         # Token validation itself measures ~0.3ms on both branches.
+        #
+        # Known transient, accepted by design: right after a ZITADEL signing
+        # key rotation, the first token under the new kid triggers a
+        # synchronous JWKS refetch (bounded by JWKS_HTTP_TIMEOUT) that will
+        # not fit this budget — that one request 401s, the fetch completes,
+        # and the retry passes. Sizing this timeout to cover an IdP round
+        # trip would let a slow IdP stall the whole gateway instead.
         timeout processing 50ms
         use-backend backend-spoe-auth
 

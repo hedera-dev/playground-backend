@@ -60,6 +60,7 @@ jobs:
           yq eval ".env.zitadelIssuer = \"${{ vars.SPOE_AUTH_ZITADEL_ISSUER }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.zitadelAudience = \"${{ vars.SPOE_AUTH_ZITADEL_AUDIENCE }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
           yq eval ".env.acceptLegacyPaseto = \"${{ vars.SPOE_AUTH_ACCEPT_LEGACY_PASETO || 'true' }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
+          yq eval ".env.jwksCacheTtl = \"${{ vars.SPOE_AUTH_JWKS_CACHE_TTL || '10m' }}\"" -i ./infrastructure/k8s/helm/charts/${{ env.CHART_NAME }}/values.yaml
 
       - name: Configure Google Cloud Auth
         uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2.1.13

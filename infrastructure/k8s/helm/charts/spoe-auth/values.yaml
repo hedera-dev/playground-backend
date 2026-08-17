@@ -29,6 +29,9 @@ env:
   zitadelAudience: ""         # ZITADEL project id the token's aud must contain
   jwtUserClaim: "urn:hedera:portal_user_id"
   jwtClockSkewSeconds: "30"
+  jwksCacheTtl: "10m"         # Background JWKS refresh interval (Go duration)
+  jwksHttpTimeout: "5s"       # Bound on every JWKS fetch, on-miss ones included
+  allowedClientIds: ""        # Optional comma-separated client_id allow-list
 
   # Admin bypass
   adminApiKey: ""           # Optional: bypass when X-API-Key matches

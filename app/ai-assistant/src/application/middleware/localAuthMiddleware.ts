@@ -38,11 +38,16 @@ function getJwks(): JWTVerifyGetKey {
 // exclusively from the portal-user-id claim — never `sub`, whose ZITADEL
 // value would detach every stored BYOK key.
 async function verifyZitadelJwt(token: string): Promise<string | undefined> {
+  // Fail closed like the Go agent, which refuses to boot without these: with
+  // `audience: undefined` jose would simply skip the aud check.
+  if (!environment.zitadelIssuer || !environment.zitadelAudience) {
+    throw new Error('ZITADEL_ISSUER and ZITADEL_AUDIENCE are required for the JWT branch');
+  }
   const { payload } = await jwtVerify(token, getJwks(), {
     algorithms: ['RS256'],
     issuer: environment.zitadelIssuer,
     audience: environment.zitadelAudience,
-    clockTolerance: 30
+    clockTolerance: environment.jwtClockSkewSeconds
   });
   const userId = payload[environment.jwtUserClaim];
   return typeof userId === 'string' && userId.trim() !== '' ? userId.trim() : undefined;
@@ -73,6 +78,14 @@ export async function registerLocalAuthMiddleware(fastify: FastifyInstance): Pro
 
       if (isJwt(token)) {
         userId = await verifyZitadelJwt(token);
+      } else if (!environment.acceptLegacyPaseto) {
+        // Same kill switch as the SPOE agent: past the migration, legacy
+        // tokens are refused rather than quietly still accepted in local.
+        return reply.status(401).send({
+          reason: 'AUTHENTICATION_FAILED',
+          message: 'Invalid or expired authentication token',
+          statusCode: 401
+        });
       } else {
         const key = getPublicKey();
         // ignoreExp: true — tokens expirados son válidos en local para facilitar el desarrollo

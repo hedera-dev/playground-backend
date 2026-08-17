@@ -71,6 +71,9 @@ Request → HAProxy → SPOE Filter → spoe-auth → HAProxy → Backend
 | `ZITADEL_AUDIENCE` | with issuer | - | ZITADEL project id the token's `aud` array must contain |
 | `JWT_USER_CLAIM` | ❌ | `urn:hedera:portal_user_id` | Claim carrying the portal user id; a valid token without it is refused (no `sub` fallback) |
 | `JWT_CLOCK_SKEW_SECONDS` | ❌ | `30` | `exp`/`nbf` leeway for the JWT branch |
+| `JWKS_CACHE_TTL` | ❌ | `10m` | Background JWKS refresh interval (Go duration) |
+| `JWKS_HTTP_TIMEOUT` | ❌ | `5s` | Bound on every JWKS fetch, unknown-kid refetches included |
+| `ZITADEL_ALLOWED_CLIENT_IDS` | ❌ | - | Comma-separated `client_id` allow-list; empty accepts any client of the audience |
 | `MODE` | ❌ | `http` | Service mode: `http` or `spoe` |
 | `LISTEN_ADDR` | ❌ | `:9000` (spoe) / `:8080` (http) | Listen address |
 | `IGNORE_EXP` | ❌ | `false` | Ignore token expiration validation |
@@ -189,3 +192,11 @@ cannot reach a host-local instance directly.
 Measured here (and the reason the chart's `timeout processing` is 50ms): the
 first request on a fresh SPOE connection costs ~18ms of TCP + HELLO
 handshake, follow-ups ~5ms, and token validation itself ~0.3ms per branch.
+
+Known transient, accepted by design: right after a ZITADEL signing key
+rotation, the first token under the new kid triggers a synchronous JWKS
+refetch (bounded by `JWKS_HTTP_TIMEOUT`) that exceeds the SPOE budget — that
+one request 401s, the fetch completes, and the retry passes. Tokens signed
+with the previous key keep validating from the cache throughout. The
+rotation behavior itself is covered deterministically by
+`TestJWKSRotationServesNewKidDeterministically`.

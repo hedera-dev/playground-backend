@@ -10,6 +10,8 @@ export const environment = {
   zitadelJwksUrl: process.env.ZITADEL_JWKS_URL,
   zitadelAudience: process.env.ZITADEL_AUDIENCE,
   jwtUserClaim: process.env.JWT_USER_CLAIM ?? 'urn:hedera:portal_user_id',
+  jwtClockSkewSeconds: Number(process.env.JWT_CLOCK_SKEW_SECONDS ?? 30),
+  acceptLegacyPaseto: process.env.ACCEPT_LEGACY_PASETO !== 'false',
 };
 
 export const isLocal = () => environment.environment === 'local';

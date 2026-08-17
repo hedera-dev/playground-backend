@@ -45,6 +45,12 @@ spec:
               value: {{ .Values.env.jwtUserClaim | quote }}
             - name: JWT_CLOCK_SKEW_SECONDS
               value: {{ .Values.env.jwtClockSkewSeconds | quote }}
+            - name: JWKS_CACHE_TTL
+              value: {{ .Values.env.jwksCacheTtl | quote }}
+            - name: JWKS_HTTP_TIMEOUT
+              value: {{ .Values.env.jwksHttpTimeout | quote }}
+            - name: ZITADEL_ALLOWED_CLIENT_IDS
+              value: {{ .Values.env.allowedClientIds | quote }}
             - name: ADMIN_API_KEY
               value: {{ .Values.env.adminApiKey | quote }}
             - name: AUTH_ARG

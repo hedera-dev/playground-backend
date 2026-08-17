@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -83,6 +84,7 @@ func mintJWT(t *testing.T, k testKey, method jwt.SigningMethod, overrides claimO
 		"iss":       testIssuer,
 		"aud":       []string{testClientID, testProject},
 		"sub":       "385801011576438787",
+		"client_id": testClientID,
 		"exp":       time.Now().Add(time.Hour).Unix(),
 		"iat":       time.Now().Unix(),
 		portalClaim: portalUserID,
@@ -109,7 +111,13 @@ func mintJWT(t *testing.T, k testKey, method jwt.SigningMethod, overrides claimO
 
 func newTestJWTVerifier(t *testing.T, server *httptest.Server) *JWTVerifier {
 	t.Helper()
-	v, err := newJWTVerifier(testIssuer, server.URL, testProject, portalClaim, 30*time.Second)
+	v, err := newJWTVerifier(JWTVerifierConfig{
+		Issuer:    testIssuer,
+		JWKSURL:   server.URL,
+		Audience:  testProject,
+		UserClaim: portalClaim,
+		Leeway:    30 * time.Second,
+	})
 	if err != nil {
 		t.Fatalf("verifier: %v", err)
 	}
@@ -160,6 +168,64 @@ func TestJWTRejections(t *testing.T) {
 		if _, err := v.verify(token); err == nil {
 			t.Errorf("%s: expected rejection, token was accepted", name)
 		}
+	}
+}
+
+// The IdP rotates keys by signing with a new kid while briefly keeping the
+// old one published. The unknown-kid path refetches synchronously, so this is
+// deterministic — no sleeps, no polling.
+func TestJWKSRotationServesNewKidDeterministically(t *testing.T) {
+	k1 := newTestKey(t, "kid-1")
+	k2 := newTestKey(t, "kid-2")
+
+	var body atomic.Value
+	body.Store(jwksFor(k1))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body.Load().([]byte))
+	}))
+	t.Cleanup(server.Close)
+
+	v := newTestJWTVerifier(t, server)
+
+	if _, err := v.verify(mintJWT(t, k1, jwt.SigningMethodRS256, nil)); err != nil {
+		t.Fatalf("kid-1 before rotation: %v", err)
+	}
+
+	// Rotation: the JWKS now carries both keys and tokens arrive under kid-2.
+	body.Store(jwksFor(k1, k2))
+	if _, err := v.verify(mintJWT(t, k2, jwt.SigningMethodRS256, nil)); err != nil {
+		t.Fatalf("kid-2 right after rotation (unknown-kid refetch): %v", err)
+	}
+
+	// The old key drops out of the JWKS; the cached copy keeps validating
+	// tokens that were signed with it until the next background refresh.
+	body.Store(jwksFor(k2))
+	if _, err := v.verify(mintJWT(t, k1, jwt.SigningMethodRS256, nil)); err != nil {
+		t.Fatalf("kid-1 from cache after retirement: %v", err)
+	}
+}
+
+func TestJWTClientIDAllowList(t *testing.T) {
+	k := newTestKey(t, "kid-1")
+	server := serveJWKS(t, k)
+
+	pinned, err := newJWTVerifier(JWTVerifierConfig{
+		Issuer:           testIssuer,
+		JWKSURL:          server.URL,
+		Audience:         testProject,
+		UserClaim:        portalClaim,
+		AllowedClientIDs: []string{testClientID},
+	})
+	if err != nil {
+		t.Fatalf("verifier: %v", err)
+	}
+
+	if _, err := pinned.verify(mintJWT(t, k, jwt.SigningMethodRS256, nil)); err != nil {
+		t.Fatalf("allow-listed client refused: %v", err)
+	}
+	if _, err := pinned.verify(mintJWT(t, k, jwt.SigningMethodRS256, claimOverrides{"client_id": "someone-else"})); err == nil {
+		t.Fatal("foreign client accepted despite the allow-list")
 	}
 }
 
