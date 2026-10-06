@@ -1,8 +1,20 @@
-const { PrivateKey } = require("@hiero-ledger/sdk");
+const assert = require("node:assert/strict");
+const { Client, MirrorNodeAccountBalanceQuery } = require("@hiero-ledger/sdk");
 
-console.log("Generate ED25519 Private And Public Key Pair Example Start!")
-const privateKey = PrivateKey.generateED25519();
-console.log('Private Key', privateKey);
+async function main() {
+  const client = Client.forTestnet();
+  try {
+    const balance = await new MirrorNodeAccountBalanceQuery()
+      .setAccountId("0.0.2")
+      .execute(client);
+    assert(!balance.hbars.toTinybars().isNegative());
+    console.log("MirrorNodeAccountBalanceQuery:", balance.hbars.toString());
+  } finally {
+    client.close();
+  }
+}
 
-const publicKey = privateKey.publicKey;
-console.log('Public Key', publicKey);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

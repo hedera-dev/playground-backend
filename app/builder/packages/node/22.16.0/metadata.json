@@ -1,6 +1,6 @@
 {
     "language": "node",
-    "version": "20.11.1",
+    "version": "22.16.0",
     "provides": [
         {
             "language": "javascript",
