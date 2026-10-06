@@ -2,10 +2,10 @@
 
 This project provides an environment for users to execute code related to the **Hedera network**, allowing them to test functionalities using the Hedera SDK. Currently, the following languages and versions are supported:
 
-- **Java**: `21.0.2` with Hedera SDK `2.64.0`
-- **JavaScript**: `22.16.0` with Hiero SDK `2.75.0`
+- **Java**: `21.0.2` with Hedera SDK `2.78.0`
+- **JavaScript**: `22.16.0` with Hiero SDK `2.89.1`
 - **Rust**: `1.85.1` with Hiero SDK `0.40.0`
-- **Go**: `1.25.4` with Hiero SDK `2.73.0`
+- **Go**: `1.26.8` with Hiero SDK `2.85.1`
 
 ---
 
