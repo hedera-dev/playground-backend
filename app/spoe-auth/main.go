@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,7 +23,19 @@ import (
 /*
 Environment variables:
 
-PASETO_V4_PUBLIC_KEY_HEX   (required)   -> Ed25519 public key (32 bytes) in HEX
+PASETO_V4_PUBLIC_KEY_HEX   (optional*)  -> Ed25519 public key (32 bytes) in HEX for legacy portal tokens
+ACCEPT_LEGACY_PASETO       (optional)   -> "false" disables the legacy PASETO branch entirely (default "true")
+ZITADEL_ISSUER             (optional*)  -> enables the ZITADEL JWT branch; must equal the token's iss
+ZITADEL_JWKS_URL           (optional)   -> defaults to {ZITADEL_ISSUER}/oauth/v2/keys
+ZITADEL_AUDIENCE           (required with ZITADEL_ISSUER) -> project id the token's aud must contain
+JWT_USER_CLAIM             (optional)   -> claim carrying the portal user id (default "urn:hedera:portal_user_id")
+JWT_CLOCK_SKEW_SECONDS     (optional)   -> exp/nbf leeway for the JWT branch (default 30)
+JWKS_CACHE_TTL             (optional)   -> background JWKS refresh interval, Go duration (default "10m")
+JWKS_HTTP_TIMEOUT          (optional)   -> bound on every JWKS fetch, on-miss ones included (default "5s")
+ZITADEL_ALLOWED_CLIENT_IDS (optional)   -> comma-separated client_id allow-list; empty accepts any client of the audience
+
+(*) at least one branch must be configured.
+
 MODE                       (optional)   -> "http" (default) or "spoe"
 LISTEN_ADDR                (optional)   -> ":9000" (spoe) / ":8080" (http)
 IGNORE_EXP                 (optional)   -> "true" to ignore exp/nbf validation (like your Node.js)
@@ -44,8 +57,44 @@ func debugLog(format string, args ...interface{}) {
 	}
 }
 
+// logAuthOutcome is the dual-accept observability line (BRA-468): always on,
+// one entry per verification, never carrying token material. Legacy traffic
+// reaching zero on the paseto branch is what green-lights turning
+// ACCEPT_LEGACY_PASETO off.
+func logAuthOutcome(branch string, ok bool, reason string) {
+	outcome := "ok"
+	if !ok {
+		outcome = "deny"
+	}
+	log.Printf("auth branch=%s outcome=%s reason=%q", branch, outcome, reason)
+}
+
+// describeToken is safe for logs: shape and length only, never the value.
+func describeToken(token string) string {
+	switch {
+	case token == "":
+		return "none"
+	case isJWT(token):
+		return fmt.Sprintf("jwt len=%d", len(token))
+	case strings.HasPrefix(token, "v4.public."):
+		return fmt.Sprintf("paseto len=%d", len(token))
+	default:
+		return fmt.Sprintf("unknown len=%d", len(token))
+	}
+}
+
+// cookieNames is safe for logs: which cookies came in, never their values.
+func cookieNames(cookieStr string) string {
+	names := make([]string, 0, 4)
+	for name := range parseCookies(cookieStr) {
+		names = append(names, name)
+	}
+	return strings.Join(names, ",")
+}
+
 type Verifier struct {
-	pub          paseto.V4AsymmetricPublicKey
+	pub          *paseto.V4AsymmetricPublicKey // nil = legacy PASETO branch disabled
+	jwt          *JWTVerifier                  // nil = ZITADEL JWT branch disabled
 	ignoreExp    bool
 	requireAud   string
 	requireIss   string
@@ -53,13 +102,17 @@ type Verifier struct {
 }
 
 func newVerifier(pubHex string, ignoreExp bool, aud, iss, accountField string) (*Verifier, error) {
-	b, err := hex.DecodeString(strings.TrimSpace(pubHex))
-	if err != nil || len(b) != 32 {
-		return nil, errors.New("invalid ed25519 public key hex")
-	}
-	pub, err := paseto.NewV4AsymmetricPublicKeyFromBytes(b)
-	if err != nil {
-		return nil, fmt.Errorf("public key parse: %w", err)
+	var pub *paseto.V4AsymmetricPublicKey
+	if strings.TrimSpace(pubHex) != "" {
+		b, err := hex.DecodeString(strings.TrimSpace(pubHex))
+		if err != nil || len(b) != 32 {
+			return nil, errors.New("invalid ed25519 public key hex")
+		}
+		parsed, err := paseto.NewV4AsymmetricPublicKeyFromBytes(b)
+		if err != nil {
+			return nil, fmt.Errorf("public key parse: %w", err)
+		}
+		pub = &parsed
 	}
 	if strings.TrimSpace(accountField) == "" {
 		accountField = "accountId"
@@ -81,6 +134,29 @@ func (v *Verifier) verifyToken(token string) (string, error) {
 		token = strings.TrimSpace(token[7:])
 	}
 	debugLog("cleaned token length: %d", len(token))
+
+	// Two token dialects share this gateway during the identity migration
+	// (BRA-468): ZITADEL RS256 JWTs from the portal's BFF and the legacy
+	// PASETO session/CLI tokens. Each format goes to its own branch and a
+	// format whose branch is off is refused, never downgraded.
+	if isJWT(token) {
+		if v.jwt == nil {
+			logAuthOutcome("jwt", false, "branch not configured")
+			return "", errors.New("zitadel jwt received but the jwt branch is not configured")
+		}
+		userID, err := v.jwt.verify(token)
+		if err != nil {
+			logAuthOutcome("jwt", false, err.Error())
+			return "", err
+		}
+		logAuthOutcome("jwt", true, "")
+		return userID, nil
+	}
+
+	if v.pub == nil {
+		logAuthOutcome("paseto", false, "branch disabled")
+		return "", errors.New("legacy paseto received but the paseto branch is disabled")
+	}
 	parser := paseto.NewParserWithoutExpiryCheck() // generic parser
 
 	if !v.ignoreExp {
@@ -95,12 +171,12 @@ func (v *Verifier) verifyToken(token string) (string, error) {
 		parser.AddRule(paseto.IssuedBy(v.requireIss))
 	}
 
-	tok, err := parser.ParseV4Public(v.pub, token, nil)
+	tok, err := parser.ParseV4Public(*v.pub, token, nil)
 	if err != nil {
-		debugLog("token verification failed: %v", err)
+		logAuthOutcome("paseto", false, err.Error())
 		return "", err
 	}
-	debugLog("token verification successful")
+	logAuthOutcome("paseto", true, "")
 
 	// Extract accountId (or sub)
 	acc := ""
@@ -139,7 +215,7 @@ func startHTTP(v *Verifier, addr, adminAPIKey string) error {
 	// /check replicates your Node.js middleware behavior
 	mux.HandleFunc("/check", func(w http.ResponseWriter, r *http.Request) {
 		debugLog("HTTP check request from %s", r.RemoteAddr)
-		
+
 		// Admin API key bypass
 		if adminAPIKey != "" && r.Header.Get("X-API-Key") == adminAPIKey {
 			debugLog("Admin API key bypass successful")
@@ -214,18 +290,27 @@ func startSPOE(v *Verifier, addr string, s spoeSettings) error {
 			return
 		}
 		debugLog("SPOE: Message found: %s", s.messageName)
-		
-		// Log received arguments in debug mode only
+
+		// Log received arguments in debug mode only. Credentials never reach
+		// the log, debug included: tokens are described by shape and length,
+		// cookies by name (values.yaml ships debug enabled, so a raw dump
+		// here would put bearer tokens in the deployed gateway's logs).
 		if debugMode {
 			debugLog("SPOE: Received arguments:")
 			if auth, ok := mes.KV.Get("auth"); ok {
-				debugLog("SPOE:   auth = %v", auth)
+				if s, ok2 := auth.(string); ok2 {
+					debugLog("SPOE:   auth = %s", describeToken(strings.TrimSpace(strings.TrimPrefix(s, "Bearer "))))
+				}
 			}
 			if apiKey, ok := mes.KV.Get("api_key"); ok {
-				debugLog("SPOE:   api_key = %v", apiKey)
+				if s, ok2 := apiKey.(string); ok2 {
+					debugLog("SPOE:   api_key = present len=%d", len(s))
+				}
 			}
 			if cookie, ok := mes.KV.Get("cookie"); ok {
-				debugLog("SPOE:   cookie = %v", cookie)
+				if s, ok2 := cookie.(string); ok2 {
+					debugLog("SPOE:   cookies = %s", cookieNames(s))
+				}
 			}
 			if method, ok := mes.KV.Get("method"); ok {
 				debugLog("SPOE:   method = %v", method)
@@ -253,7 +338,7 @@ func startSPOE(v *Verifier, addr string, s spoeSettings) error {
 		// Try to get token from Authorization header first
 		var token string
 		var tokenSource string
-		
+
 		// 1. Try Authorization header
 		if vRaw, ok := mes.KV.Get(s.authArg); ok {
 			if authToken, ok2 := vRaw.(string); ok2 && strings.TrimSpace(authToken) != "" {
@@ -264,7 +349,7 @@ func startSPOE(v *Verifier, addr string, s spoeSettings) error {
 				}
 			}
 		}
-		
+
 		// 2. Try session cookie if no Bearer token found
 		if token == "" {
 			if cookieRaw, ok := mes.KV.Get("cookie"); ok {
@@ -278,14 +363,14 @@ func startSPOE(v *Verifier, addr string, s spoeSettings) error {
 				}
 			}
 		}
-		
+
 		if token == "" {
 			debugLog("SPOE: No valid token found in Authorization header or hedera-portal-session cookie")
 			req.Actions.SetVar(action.ScopeTransaction, "auth_ok", false)
 			req.Actions.SetVar(action.ScopeTransaction, "reason", "missing_token")
 			return
 		}
-		
+
 		debugLog("SPOE: Token found from %s, length: %d", tokenSource, len(token))
 
 		userId, err := v.verifyToken(token)
@@ -320,25 +405,68 @@ func startSPOE(v *Verifier, addr string, s spoeSettings) error {
 func main() {
 	// Initialize debug mode
 	debugMode = strings.EqualFold(os.Getenv("DEBUG"), "true")
-	
+
 	mode := strings.ToLower(env("MODE", "http")) // "http" or "spoe"
 
 	pubHex := os.Getenv("PASETO_V4_PUBLIC_KEY_HEX")
-	if strings.TrimSpace(pubHex) == "" {
-		log.Fatal("PASETO_V4_PUBLIC_KEY_HEX is required")
+	if strings.EqualFold(env("ACCEPT_LEGACY_PASETO", "true"), "false") {
+		// The kill switch for the migration's end (BRA-427): the branch is
+		// gone no matter what key is still deployed.
+		pubHex = ""
+	}
+	zitadelIssuer := os.Getenv("ZITADEL_ISSUER")
+	if strings.TrimSpace(pubHex) == "" && strings.TrimSpace(zitadelIssuer) == "" {
+		log.Fatal("configure PASETO_V4_PUBLIC_KEY_HEX (legacy branch) and/or ZITADEL_ISSUER (jwt branch)")
 	}
 	ignoreExp := strings.EqualFold(os.Getenv("IGNORE_EXP"), "true")
 	debugLog("ignoreExp: %v", ignoreExp)
 	requireAud := os.Getenv("REQUIRE_AUD")
 	requireIss := os.Getenv("REQUIRE_ISS")
-	userField := env("USER_FIELD", "userId")	
+	userField := env("USER_FIELD", "userId")
 	adminAPIKey := os.Getenv("ADMIN_API_KEY")
-	
-	log.Printf("Starting SPOE Auth Service in %s mode (debug: %v)", mode, debugMode)
+
+	log.Printf("Starting SPOE Auth Service in %s mode (debug: %v, legacy paseto: %v, zitadel jwt: %v)",
+		mode, debugMode, strings.TrimSpace(pubHex) != "", strings.TrimSpace(zitadelIssuer) != "")
 
 	v, err := newVerifier(pubHex, ignoreExp, requireAud, requireIss, userField)
 	if err != nil {
 		log.Fatalf("verifier init error: %v", err)
+	}
+
+	if strings.TrimSpace(zitadelIssuer) != "" {
+		skew := 30 * time.Second
+		if s := strings.TrimSpace(os.Getenv("JWT_CLOCK_SKEW_SECONDS")); s != "" {
+			if n, err := strconv.Atoi(s); err == nil && n >= 0 {
+				skew = time.Duration(n) * time.Second
+			}
+		}
+		jv, err := newJWTVerifier(JWTVerifierConfig{
+			Issuer:      zitadelIssuer,
+			JWKSURL:     os.Getenv("ZITADEL_JWKS_URL"),
+			Audience:    os.Getenv("ZITADEL_AUDIENCE"),
+			UserClaim:   os.Getenv("JWT_USER_CLAIM"),
+			Leeway:      skew,
+			CacheTTL:    envDuration("JWKS_CACHE_TTL", 10*time.Minute),
+			HTTPTimeout: envDuration("JWKS_HTTP_TIMEOUT", 5*time.Second),
+			AllowedClientIDs: func() []string {
+				raw := strings.TrimSpace(os.Getenv("ZITADEL_ALLOWED_CLIENT_IDS"))
+				if raw == "" {
+					return nil
+				}
+				parts := strings.Split(raw, ",")
+				out := make([]string, 0, len(parts))
+				for _, p := range parts {
+					if p = strings.TrimSpace(p); p != "" {
+						out = append(out, p)
+					}
+				}
+				return out
+			}(),
+		})
+		if err != nil {
+			log.Fatalf("jwt verifier init error: %v", err)
+		}
+		v.jwt = jv
 	}
 
 	switch mode {
@@ -364,16 +492,16 @@ func main() {
 // parseCookies parses a cookie string and returns a map of cookie name -> value
 func parseCookies(cookieStr string) map[string]string {
 	cookies := make(map[string]string)
-	
+
 	// Split by semicolon and space
 	pairs := strings.Split(cookieStr, ";")
-	
+
 	for _, pair := range pairs {
 		pair = strings.TrimSpace(pair)
 		if pair == "" {
 			continue
 		}
-		
+
 		// Split by first equals sign
 		parts := strings.SplitN(pair, "=", 2)
 		if len(parts) == 2 {
@@ -382,7 +510,7 @@ func parseCookies(cookieStr string) map[string]string {
 			cookies[name] = value
 		}
 	}
-	
+
 	return cookies
 }
 
@@ -392,4 +520,17 @@ func env(k, d string) string {
 		return d
 	}
 	return v
+}
+
+func envDuration(k string, d time.Duration) time.Duration {
+	v := strings.TrimSpace(os.Getenv(k))
+	if v == "" {
+		return d
+	}
+	parsed, err := time.ParseDuration(v)
+	if err != nil || parsed <= 0 {
+		log.Printf("ignoring %s=%q: not a positive Go duration", k, v)
+		return d
+	}
+	return parsed
 }

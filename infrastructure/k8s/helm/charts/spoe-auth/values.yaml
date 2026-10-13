@@ -18,7 +18,21 @@ env:
   requireAud: ""            # Optional: expected audience
   requireIss: ""            # Optional: expected issuer
   userField: "userId"       # Optional: claim to extract user id (default: userId, fallback to sub)
-  
+
+  # ZITADEL JWT branch (BRA-468): the portal's BFF forwards RS256 access
+  # tokens. Empty issuer keeps the branch off; identity comes ONLY from the
+  # jwtUserClaim claim (never sub), so tokens the portal has not linked are
+  # refused.
+  acceptLegacyPaseto: "true"  # "false" retires the PASETO branch after the migration (BRA-427)
+  zitadelIssuer: ""           # e.g. https://auth.dev.portal.hedera.com — enables the JWT branch
+  zitadelJwksUrl: ""          # Optional: defaults to {zitadelIssuer}/oauth/v2/keys
+  zitadelAudience: ""         # ZITADEL project id the token's aud must contain
+  jwtUserClaim: "urn:hedera:portal_user_id"
+  jwtClockSkewSeconds: "30"
+  jwksCacheTtl: "10m"         # Background JWKS refresh interval (Go duration)
+  jwksHttpTimeout: "5s"       # Bound on every JWKS fetch, on-miss ones included
+  allowedClientIds: ""        # Optional comma-separated client_id allow-list
+
   # Admin bypass
   adminApiKey: ""           # Optional: bypass when X-API-Key matches
   

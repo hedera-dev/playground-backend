@@ -36,7 +36,11 @@ http:
         period: 1m
     cors-headers:
       headers:
-        accessControlAllowOriginList: 
+        # Reviewed for the identity migration (BRA-469): unchanged while the
+        # legacy portal still calls this gateway from the browser. Once the
+        # portal is fully behind its BFF proxy (browser traffic stops hitting
+        # this origin directly) this list can be tightened instead of grown.
+        accessControlAllowOriginList:
           - "https://dev.portal.hedera.com"
         accessControlAllowMethods:
           - GET

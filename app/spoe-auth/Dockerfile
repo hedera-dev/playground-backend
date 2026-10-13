@@ -18,8 +18,8 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o spoe-auth main.go
+# Build the application (the whole package: main.go + jwt.go)
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o spoe-auth .
 
 # Final stage
 FROM alpine:latest

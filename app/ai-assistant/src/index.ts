@@ -205,7 +205,7 @@ async function start() {
         maxAge: 3628800
       });
       await registerLocalAuthMiddleware(fastify);
-      logger.info('Local CORS and auth middleware (PASETO) registered');
+      logger.info('Local CORS and auth middleware (PASETO + ZITADEL JWT) registered');
     } else {
       logger.warn(
         { environment: environment.environment },

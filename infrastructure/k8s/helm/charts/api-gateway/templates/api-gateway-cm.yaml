@@ -135,6 +135,10 @@ data:
         http-request set-var(txn.origin) req.hdr(Origin)
 
         # CORS: Define allowed origins
+        # Reviewed for the identity migration (BRA-468): unchanged while the
+        # legacy portal still calls this gateway from the browser. Once the
+        # portal is fully behind its BFF proxy (browser traffic stops hitting
+        # this origin directly) this list can be tightened instead of grown.
         acl origin_allowed var(txn.origin) -m str http://localhost:5173 https://dev.portal.hedera.com
         
         # Define ACLs first
@@ -217,7 +221,20 @@ data:
         option var-prefix spoe
         timeout hello 100ms
         timeout idle 30s
-        timeout processing 15ms
+        # 50ms, was 15ms (BRA-468): measured against the dockerized agent, the
+        # FIRST request on a fresh SPOE connection costs ~18ms (TCP + HELLO +
+        # verify) and follow-ups ~5ms. A 15ms budget kills every first
+        # transaction after an idle close, HAProxy then drops the connection
+        # and each request pays the handshake again — a permanent 401 loop.
+        # Token validation itself measures ~0.3ms on both branches.
+        #
+        # Known transient, accepted by design: right after a ZITADEL signing
+        # key rotation, the first token under the new kid triggers a
+        # synchronous JWKS refetch (bounded by JWKS_HTTP_TIMEOUT) that will
+        # not fit this budget — that one request 401s, the fetch completes,
+        # and the retry passes. Sizing this timeout to cover an IdP round
+        # trip would let a slow IdP stall the whole gateway instead.
+        timeout processing 50ms
         use-backend backend-spoe-auth
 
     spoe-message verify
