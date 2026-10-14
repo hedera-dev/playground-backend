@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PKGDIR=/pkgs_manager/packages/go/1.25.4
+PKGDIR=/pkgs_manager/packages/go/1.26.8
 GOROOT=$PKGDIR/go
 TOOLDIR=$GOROOT/pkg/tool/linux_amd64
 PKG_STORE=$PKGDIR/pkg-store

@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 PKGDIR="$PWD"
 
-curl -OL https://go.dev/dl/go1.25.4.linux-amd64.tar.gz
-tar -xzf go1.25.4.linux-amd64.tar.gz
-rm go1.25.4.linux-amd64.tar.gz
+curl -fsSL https://go.dev/dl/go1.26.8.linux-amd64.tar.gz -o go.tar.gz
+echo "d0f743b33e8d8945e6b1f432edd15785c70507121d6e2a723b21285eddf8b57b  go.tar.gz" | sha256sum -c -
+tar -xzf go.tar.gz
+rm go.tar.gz
 
 source environment
 
-go mod init hedera-playground
-go get github.com/hiero-ledger/hiero-sdk-go/v2/sdk@v2.80.0
+# Keep module discovery away from the unpacked Go toolchain and its test fixtures.
+mkdir -p sdk-module
+cp test.go sdk-module/main.go
+cd sdk-module
+if [ ! -f go.mod ]; then
+    go mod init hedera-playground
+fi
+go get github.com/hiero-ledger/hiero-sdk-go/v2/sdk@v2.85.1
 go mod tidy
 
 echo "Pre-compiling Hiero SDK packages..."
 go build -v github.com/hiero-ledger/hiero-sdk-go/v2/sdk/... 2>&1 | tail -5
+cp go.mod go.sum "$PKGDIR/"
+cd "$PKGDIR"
 
 # ---------------------------------------------------------------------------
 # Generate importcfg and collect pre-compiled .a files for direct compilation.

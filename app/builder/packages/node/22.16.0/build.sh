@@ -1,5 +1,7 @@
 #!/bin/bash
-curl "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz" -o node.tar.xz
+set -euo pipefail
+
+curl -fsSL "https://nodejs.org/dist/v22.16.0/node-v22.16.0-linux-x64.tar.xz" -o node.tar.xz
 
 tar xf node.tar.xz --strip-components=1
 rm node.tar.xz
@@ -11,7 +13,7 @@ fi
 
 source environment
 
-bin/npm install -g @hiero-ledger/sdk@2.85.0
+bin/npm install -g @hiero-ledger/sdk@2.89.1
 
 if [ $? -ne 0 ]; then
   echo "Error: Cannot install @hiero-ledger/sdk"

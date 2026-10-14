@@ -1,15 +1,21 @@
-import com.hedera.hashgraph.sdk.PrivateKey;
-import com.hedera.hashgraph.sdk.PublicKey;
+import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.Client;
+import com.hedera.hashgraph.sdk.MirrorNodeAccountBalanceQuery;
 
 class Test {
 
-    public static void main(String[] args) {
-        System.out.println("Generate ED25519 Private And Public Key Pair Example Start!");
-
-        PrivateKey privateKey = PrivateKey.generateED25519();
-        System.out.println("Private Key: " + privateKey);
-
-        PublicKey publicKey = privateKey.getPublicKey();
-        System.out.println("Public key: " + publicKey);
+    public static void main(String[] args) throws Exception {
+        Client client = Client.forTestnet();
+        try {
+            var balance = new MirrorNodeAccountBalanceQuery()
+                .setAccountId(AccountId.fromString("0.0.2"))
+                .execute(client);
+            if (balance.hbars.toTinybars() < 0) {
+                throw new AssertionError("Negative HBAR balance");
+            }
+            System.out.println("MirrorNodeAccountBalanceQuery: " + balance.hbars);
+        } finally {
+            client.close();
+        }
     }
 }
