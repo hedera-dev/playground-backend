@@ -10,7 +10,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
   tags = ["playground"]
 
   disk {
-    source_image = "projects/debian-cloud/global/images/debian-11-bullseye-v20241009"
+    source_image = "projects/debian-cloud/global/images/debian-12-bookworm-v20261006"
     auto_delete  = true
     boot         = true
     disk_size_gb = 40
@@ -48,6 +48,7 @@ resource "google_compute_region_instance_template" "rit-playground" {
 
   metadata_startup_script = <<-EOT
     #!/bin/bash
+    set -euo pipefail
 
     cd /tmp
 
